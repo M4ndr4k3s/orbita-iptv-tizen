@@ -87,4 +87,25 @@ Problemas que a TV revelou, todos corrigidos e remedidos:
 4. O cancelamento esperava o worker. Agora fecha na hora.
 5. O worker apagava a geração parcial antes de avisar. Agora avisa primeiro.
 
-**Risco residual (pendente):** com o banco grande e logo depois de apagar muitos registros, ainda houve 3 travadas de 2–3 s no começo da importação Xtream, mesmo sem a interface tocar no IndexedDB. A suspeita é a compactação interna do armazenamento do Tizen depois da exclusão em massa. Como cada atualização apaga a geração anterior (~100 mil itens), isso pode aparecer em toda atualização. Estratégia a avaliar: atualizar no lugar (sobrescrever ids e apagar só a sobra) em vez de geração nova, pesando o custo em atomicidade.
+**Risco residual do marco 4 (pendente):** com o banco grande e logo depois de apagar muitos registros, ainda houve 3 travadas de 2–3 s no começo da importação Xtream, mesmo sem a interface tocar no IndexedDB. A suspeita é a compactação interna do armazenamento do Tizen depois da exclusão em massa. Como cada atualização apaga a geração anterior (~100 mil itens), isso pode aparecer em toda atualização. Estratégia a avaliar: atualizar no lugar (sobrescrever ids e apagar só a sobra) em vez de geração nova, pesando o custo em atomicidade.
+
+## Marco 5: player AVPlay (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 66/66; sessão de reprodução: conectar, primeiro quadro, novas tentativas com espera crescente, erro fatal sem repetir, timeout de início, stream congelado, fim de stream ao vivo, eventos depois do stop, pausa sem vigia; URL Xtream com credenciais codificadas e mascaramento para log |
+| `m5-player.js` | **TV** | 18/18 (lista real do usuário + mock) |
+| `m5-pause.js` | **TV** | 5/5 |
+
+Medições na TV com a lista real (Xtream, canal 1080p H.264):
+
+| Medida | Valor |
+|---|---|
+| Do "Assistir TV" até a imagem | 6,0–6,1 s (primeiro quadro do AVPlay em 5,4–5,6 s) |
+| Troca de canal (CH+) até tocar | 4,8–5,1 s |
+| Canal quebrado: tentativas até mostrar o erro | 12,1 s (3 tentativas) |
+| Heap antes e depois de 15 trocas seguidas | 9,5 → 9,5 MB |
+
+Coberto: abrir em tela cheia (menu some), CH+/CH− (com volta ao início da lista), três trocas rápidas abrindo só o último canal, número pelo controle, Info, Play/Pause (estado `PAUSED` no AVPlay e sem reconexão indevida em 20 s pausado), Back parando o AVPlay, canal quebrado (reconexão → erro claro → "Próximo canal").
+
+Não testado: queda de rede no meio do canal (só o vigia de stream congelado, no teste unitário); app em segundo plano e de volta (suspend/restore), que exige a tecla Home física; troca de canal mais rápida que ~5 s, que depende do servidor e do buffer inicial do AVPlay (ajustes de buffer ficam para o marco 9).

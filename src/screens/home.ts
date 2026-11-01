@@ -13,6 +13,8 @@ import { SourcePickerScreen } from './sourcePicker';
 import { focus } from '../navigation/focus';
 import { importLine } from '../services/format';
 import { importWithProgress } from './importFlow';
+import { PlayerScreen } from './player';
+import { toast } from '../components/toast';
 import { t, type I18nKey } from '../services/i18n';
 
 const SHORTCUTS: Array<[SectionId, IconName, I18nKey]> = [
@@ -44,6 +46,18 @@ export class HomeScreen implements Screen {
     ctx.sources.onChange(() => this.renderHero());
   }
 
+  /** Abre o player no primeiro canal ao vivo da lista ativa (navegação completa no marco 6). */
+  private async watch(): Promise<void> {
+    const s = this.ctx.sources.active();
+    if (!s || !s.import) return;
+    const ch = await this.ctx.data.call('channels.first', s.import.gk);
+    if (!ch) {
+      toast(t('player.empty'), 'error');
+      return;
+    }
+    this.ctx.push(new PlayerScreen(this.ctx, s, ch));
+  }
+
   onBack(): boolean {
     this.onBackAtRoot();
     return false;
@@ -63,8 +77,11 @@ export class HomeScreen implements Screen {
     } else {
       const actions = el('div', { class: 'hero-actions' });
       const loaded = !!active.import;
+      if (loaded && active.import!.live > 0) {
+        actions.appendChild(button(t('home.watch'), { icon: 'live', variant: 'primary', autofocus: true, onClick: () => void this.watch() }));
+      }
       actions.appendChild(button(loaded ? t('home.refresh') : t('home.loadNow'), {
-        icon: 'lists', variant: 'primary', autofocus: true,
+        icon: 'lists', variant: actions.childNodes.length ? 'ghost' : 'primary', autofocus: !actions.childNodes.length,
         onClick: () => void importWithProgress(this.ctx.imports, active),
       }));
       if (this.ctx.sources.list().length > 1) {

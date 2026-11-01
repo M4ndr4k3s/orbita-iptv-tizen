@@ -22,3 +22,4 @@
 | 2026-11-01 | Apagar 60 mil itens em fatias levou 200 s | No Tizen o custo do IndexedDB é por transação | `delete` único por intervalo, só no worker |
 | 2026-11-01 | Inspector caiu (ECONNRESET) durante os testes longos | O app ficou preso na varredura do índice (item acima) | Resolvido pelas mudanças acima; o `tv.mjs` tem timeouts configuráveis |
 | (anterior) | `tizen install`: `[target]: null` | TV não conectada no SDB | `build.mjs --install` roda `sdb connect` antes |
+| 2026-11-01 | Roteiro do player: CH±, Info e Pausa sem efeito | `T.press` não conhecia `chUp`/`info`/`playPause` e mandava código 0 | Mapa de teclas completo no helper; tecla desconhecida agora gera erro no roteiro |

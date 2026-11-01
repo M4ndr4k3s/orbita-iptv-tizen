@@ -57,7 +57,7 @@ await build({
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   charset: 'utf8',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version), __DEV_SEED__: JSON.stringify(seed) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __DEV_SEED__: JSON.stringify(seed), __DEV__: String(!release) },
   logLevel: 'warning',
 });
 await build({

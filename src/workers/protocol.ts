@@ -13,6 +13,9 @@ export interface RpcMethods {
   'gens.cleanup': { args: [string[], string[]]; result: string[] };
   'groups.get': { args: [string]; result: Group[] };
   'channels.page': { args: [string, string, number, number]; result: Channel[] };
+  'channels.first': { args: [string]; result: Channel | null };
+  'channels.neighbor': { args: [string, number, 1 | -1]; result: Channel | null };
+  'channels.byNumber': { args: [string, number]; result: Channel | null };
 }
 export type RpcName = keyof RpcMethods;
 

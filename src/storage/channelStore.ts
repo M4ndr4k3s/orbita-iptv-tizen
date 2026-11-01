@@ -6,7 +6,7 @@
 
 import { openDb } from './db';
 import type { ImportSink } from '../playlist/importer';
-import type { Channel, Group } from '../playlist/model';
+import { pad8, type Channel, type Group } from '../playlist/model';
 
 function txDone(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -94,6 +94,54 @@ export async function getGroups(gk: string): Promise<Group[]> {
 export async function countChannels(gk: string): Promise<number> {
   const db = await openDb();
   return req(db.transaction('channels', 'readonly').objectStore('channels').count(genRange(gk)));
+}
+
+/** Primeiro item do tipo, a partir de uma posição, numa direção. Não dá a volta. */
+function scan(db: IDBDatabase, range: IDBKeyRange, dir: IDBCursorDirection, kind: string): Promise<Channel | null> {
+  return new Promise((resolve, reject) => {
+    const cur = db.transaction('channels', 'readonly').objectStore('channels').openCursor(range, dir);
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return resolve(null);
+      const v = c.value as Channel;
+      if (v.kind === kind) return resolve(v);
+      c.continue();
+    };
+    cur.onerror = () => reject(cur.error);
+  });
+}
+
+/** Canal seguinte/anterior (CH+/CH−) do mesmo tipo; no fim, volta ao começo. */
+export async function neighbor(gk: string, order: number, dir: 1 | -1, kind = 'live'): Promise<Channel | null> {
+  const db = await openDb();
+  const here = gk + ':' + pad8(order);
+  const first =
+    dir > 0
+      ? await scan(db, IDBKeyRange.bound(here, gk + ':￿', true), 'next', kind)
+      : await scan(db, IDBKeyRange.bound(gk + ':', here, false, true), 'prev', kind);
+  if (first) return first;
+  // volta pela outra ponta
+  return dir > 0 ? scan(db, IDBKeyRange.bound(gk + ':', here, false, true), 'next', kind) : scan(db, IDBKeyRange.bound(here, gk + ':￿', true), 'prev', kind);
+}
+
+export async function firstOf(gk: string, kind = 'live'): Promise<Channel | null> {
+  return scan(await openDb(), genRange(gk), 'next', kind);
+}
+
+/** Canal pelo número exibido (o primeiro, se a lista repetir números). */
+export async function byNumber(gk: string, num: number, kind = 'live'): Promise<Channel | null> {
+  const db = await openDb();
+  const idx = db.transaction('channels', 'readonly').objectStore('channels').index('gk_num');
+  return new Promise((resolve, reject) => {
+    const cur = idx.openCursor(IDBKeyRange.only([gk, num]));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return resolve(null);
+      if ((c.value as Channel).kind === kind) return resolve(c.value as Channel);
+      c.continue();
+    };
+    cur.onerror = () => reject(cur.error);
+  });
 }
 
 /** Página de itens de um grupo, na ordem da lista. */

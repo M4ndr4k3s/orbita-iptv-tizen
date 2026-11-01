@@ -76,6 +76,16 @@ createServer((req, res) => {
   const p = u.searchParams;
   console.log(new Date().toLocaleTimeString(), req.method, u.pathname, p.get('action') || '', p.has('password') ? '(com credenciais)' : '');
   if (u.pathname === '/lista.m3u') return send(200, 'audio/x-mpegurl; charset=utf-8', smallM3u());
+  if (u.pathname === '/player.m3u') {
+    // 1 e 2 tocam (streams públicos de teste); 3 é quebrado (404 neste mock); 4 toca
+    const here = 'http://' + (req.headers.host || 'localhost:' + PORT);
+    const body = '#EXTM3U\n' +
+      `#EXTINF:-1 tvg-chno="1" group-title="Player",Teste Mux HLS\n${STREAMS[0]}\n` +
+      `#EXTINF:-1 tvg-chno="2" group-title="Player",Teste Apple HLS\n${STREAMS[1]}\n` +
+      `#EXTINF:-1 tvg-chno="3" group-title="Player",Canal quebrado\n${here}/naoexiste.ts\n` +
+      `#EXTINF:-1 tvg-chno="4" group-title="Player",Teste Mux HLS 2\n${STREAMS[0]}?b=2\n`;
+    return send(200, 'audio/x-mpegurl; charset=utf-8', body);
+  }
   if (u.pathname === '/grande.m3u') {
     res.writeHead(200, { 'Content-Type': 'audio/x-mpegurl; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
     return streamBig(res, Number(p.get('n') || BIG), m3uLine, '#EXTM3U\n');

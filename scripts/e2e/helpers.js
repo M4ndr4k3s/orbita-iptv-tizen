@@ -1,11 +1,16 @@
 // Ajudantes injetados na página (TV ou preview) pelos roteiros de teste.
 // Simulam o controle remoto disparando keydown com os códigos Samsung.
 window.T = (() => {
-  const K = { left: 37, up: 38, right: 39, down: 40, ok: 13, back: 10009, red: 403, green: 404, yellow: 405, blue: 406 };
+  // mesmos códigos de src/navigation/keys.ts
+  const K = {
+    left: 37, up: 38, right: 39, down: 40, ok: 13, back: 10009, red: 403, green: 404, yellow: 405, blue: 406,
+    chUp: 427, chDown: 428, info: 457, guide: 458, playPause: 10252, play: 415, pause: 19, stop: 413, ff: 417, rw: 412,
+  };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const press = (k, n = 1) => {
     for (let i = 0; i < n; i++) {
       const code = typeof k === 'number' ? k : K[k];
+      if (!code) throw new Error('tecla desconhecida no roteiro: ' + k);
       document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code, bubbles: true }));
     }
   };

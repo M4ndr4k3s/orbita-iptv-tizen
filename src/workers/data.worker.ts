@@ -3,7 +3,9 @@
 // Tizen isso travou a interface por segundos com o banco grande.
 
 import { runImport, ImportError } from '../playlist/runImport';
-import { idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage } from '../storage/channelStore';
+import {
+  idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
+} from '../storage/channelStore';
 import { idbStore, openDb } from '../storage/db';
 import type { Source } from '../playlist/source';
 import type { ToWorker, FromWorker, RpcName } from './protocol';
@@ -25,6 +27,9 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'groups.get': (gk: string) => getGroups(gk),
   'channels.page': (gk: string, group: string, offset: number, limit: number) =>
     getGroupPage(gk, group, Math.max(0, offset | 0), Math.min(500, Math.max(1, limit | 0))),
+  'channels.first': (gk: string) => firstOf(gk),
+  'channels.neighbor': (gk: string, order: number, dir: number) => neighbor(gk, order | 0, dir < 0 ? -1 : 1),
+  'channels.byNumber': (gk: string, num: number) => byNumber(gk, num | 0),
 };
 
 async function handleRpc(id: number, method: RpcName, args: unknown[]): Promise<void> {

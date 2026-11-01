@@ -1,0 +1,75 @@
+/* Reprodução: o vídeo (AVPlay) fica numa camada atrás do HTML; durante a
+   reprodução o fundo e o menu somem e só o OSD fica por cima. */
+
+#av-player, #html5-player {
+  position: fixed;
+  top: 0; left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 0;
+  background: #000;
+}
+#html5-player { object-fit: contain; }
+body:not(.playing) #av-player, body:not(.playing) #html5-player { visibility: hidden; }
+body.playing #backdrop { display: none; }
+.shell.immersive .sidebar { display: none; }
+.shell.immersive .screens { left: 0; }
+
+.screen.player { padding: 0; }
+
+/* ── OSD ── */
+.osd { opacity: 0; transition: opacity var(--t-med); }
+.osd.visible { opacity: 1; }
+.osd-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 260px;
+  padding: var(--safe-y) var(--safe-x) 0;
+  display: flex;
+  align-items: flex-start;
+  background: linear-gradient(180deg, rgba(4, 5, 14, 0.85), rgba(4, 5, 14, 0));
+}
+.osd-logo { width: 160px; height: 96px; object-fit: contain; margin-right: var(--sp-4); background: rgba(255, 255, 255, 0.06); border-radius: var(--r-sm); }
+.osd-line { display: flex; align-items: baseline; }
+.osd-num { font-size: var(--fs-xl); font-weight: 700; color: var(--c-cyan); margin-right: var(--sp-3); }
+.osd-name { font-size: var(--fs-xl); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1300px; }
+.osd-group { font-size: var(--fs-sm); color: var(--c-text-2); margin-top: 4px; }
+.osd-bottom {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 200px;
+  padding: 0 var(--safe-x) var(--safe-y);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(0deg, rgba(4, 5, 14, 0.85), rgba(4, 5, 14, 0));
+}
+.osd-status { font-size: var(--fs-md); min-height: 40px; }
+.osd-status.warn { color: #ffc861; }
+.osd-hint { font-size: var(--fs-xs); color: var(--c-text-3); margin-top: var(--sp-1); }
+
+.osd-digits {
+  position: absolute;
+  top: var(--safe-y);
+  right: var(--safe-x);
+  min-width: 200px;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  background: rgba(4, 5, 14, 0.85);
+  font-size: 96px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--c-cyan);
+}
+
+.player-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1000px;
+  transform: translate(-50%, -50%);
+  padding: var(--sp-6);
+  border-radius: var(--r-lg);
+  background: rgba(16, 18, 42, 0.96);
+  border: 1px solid var(--c-border);
+}

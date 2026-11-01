@@ -28,6 +28,10 @@ const MIGRATIONS: Array<(db: IDBDatabase, tx: IDBTransaction) => void> = [
   (_db, tx) => {
     tx.objectStore('channels').deleteIndex('gk');
   },
+  // v5: ir direto para o canal pelo número digitado no controle
+  (_db, tx) => {
+    tx.objectStore('channels').createIndex('gk_num', ['gk', 'num']);
+  },
 ];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
