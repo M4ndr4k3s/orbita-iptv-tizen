@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+*.wgt
+.env
+*.p12
+*.pwd
+*.pri
