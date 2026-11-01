@@ -7,6 +7,8 @@ import {
   idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
   channelIds, getMany, searchIds,
 } from '../storage/channelStore';
+import { epgSink, schedule } from '../storage/epgStore';
+import { runEpg, EpgError } from '../epg/runEpg';
 import { listEntries, toggleFavorite, addHistory, deleteLibrary } from '../storage/libraryStore';
 import { searchKey, type SavedEntry } from '../playlist/model';
 import { idbStore, openDb } from '../storage/db';
@@ -43,6 +45,8 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
   'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),
   'library.addHistory': (e: SavedEntry) => addHistory(checkEntry(e)),
+  'epg.schedule': (ek: string, tvgId: string | null, name: string, from: number, limit: number) =>
+    schedule(String(ek), typeof tvgId === 'string' ? tvgId : undefined, String(name || ''), Number(from) || Date.now(), Math.min(50, Math.max(1, limit | 0))),
 };
 
 /** Entrada vinda da interface: confere a forma antes de gravar. */
@@ -92,11 +96,29 @@ async function handleImport(msg: Extract<ToWorker, { type: 'start' }>): Promise<
   }
 }
 
+async function handleEpg(msg: Extract<ToWorker, { type: 'epgStart' }>): Promise<void> {
+  const ctrl = new AbortController();
+  jobs.set(msg.jobId, ctrl);
+  try {
+    await markGeneration(msg.ek, 'writing');
+    const stats = await runEpg(msg.url, msg.ek, epgSink(), { signal: ctrl.signal });
+    await markGeneration(msg.ek, 'ready');
+    post({ type: 'epgDone', jobId: msg.jobId, stats });
+  } catch (e) {
+    const err = e instanceof EpgError ? e : new EpgError('storage');
+    post({ type: 'epgError', jobId: msg.jobId, code: ctrl.signal.aborted ? 'aborted' : err.code, status: err.status });
+    await deleteGeneration(msg.ek).catch(() => undefined);
+  } finally {
+    jobs.delete(msg.jobId);
+  }
+}
+
 self.onmessage = (ev: MessageEvent<ToWorker>) => {
   const msg = ev.data;
   if (!msg || typeof msg !== 'object') return;
   if (msg.type === 'rpc') void handleRpc(msg.id, msg.method, msg.args);
   else if (msg.type === 'start') void handleImport(msg);
+  else if (msg.type === 'epgStart') void handleEpg(msg);
   else if (msg.type === 'cancel') {
     const c = jobs.get(msg.jobId);
     if (c) c.abort();

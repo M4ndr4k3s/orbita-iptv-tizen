@@ -17,6 +17,7 @@ class FakeEngine implements PlayerEngine {
   state() { return 'x'; }
   info() { return null; }
   setListener(fn: (e: EngineEvent) => void) { this.fn = fn; }
+  setRect() {}
   suspend() {}
   restore() {}
   emit(e: EngineEvent) { this.fn(e); }

@@ -17,8 +17,18 @@ import type { Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { t } from '../services/i18n';
 import { wrapIndex, type ChannelList } from '../services/channelLists';
+import { scheduleFor } from '../services/guide';
+import { renderNowNext } from '../components/epgInfo';
 
 declare const __DEV__: boolean;
+
+/** Integração com a mini janela da TV ao vivo. */
+export interface PlayerHandoff {
+  /** sessão já tocando o canal (não reabre o stream) */
+  session?: PlaybackSession;
+  /** ao sair, devolve a sessão em vez de parar */
+  keepAlive?: (s: PlaybackSession, ch: Channel) => void;
+}
 
 const OSD_MS = 5000;
 const ZAP_DEBOUNCE_MS = 350;
@@ -44,6 +54,8 @@ export class PlayerScreen implements Screen {
   private osdNum: HTMLElement;
   private osdName: HTMLElement;
   private osdGroup: HTMLElement;
+  private osdEpg: HTMLElement;
+  private epgSeq = 0;
   private osdFav: SVGSVGElement;
   private osdLogo: HTMLImageElement;
   private status: HTMLElement;
@@ -65,14 +77,18 @@ export class PlayerScreen implements Screen {
     private list: ChannelList | null = null,
     private index = 0,
     private onExit?: (ch: Channel, index: number) => void,
+    private handoff: PlayerHandoff = {},
   ) {
     this.current = start;
     this.engine = getEngine();
-    this.session = new PlaybackSession(this.engine, { live: true });
+    // sessão da mini janela: continua o mesmo stream, sem reabrir
+    this.session = handoff.session || new PlaybackSession(this.engine, { live: true });
+    if (handoff.session) handoff.session.attach();
 
     this.osdNum = el('div', { class: 'osd-num' });
     this.osdName = el('div', { class: 'osd-name' });
     this.osdGroup = el('div', { class: 'osd-group' });
+    this.osdEpg = el('div', { class: 'osd-epg' });
     this.osdFav = icon('favorites', 'icon osd-fav hidden');
     this.osdLogo = el('img', { class: 'osd-logo', attrs: { alt: '' } });
     this.osdLogo.addEventListener('error', () => this.osdLogo.classList.add('hidden'));
@@ -81,6 +97,7 @@ export class PlayerScreen implements Screen {
       el('div', { class: 'osd-top' }, [
         this.osdLogo,
         el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav]), this.osdGroup]),
+        this.osdEpg,
       ]),
       el('div', { class: 'osd-bottom' }, [this.status, el('div', { class: 'osd-hint', text: t('player.hint') })]),
     ]);
@@ -96,13 +113,16 @@ export class PlayerScreen implements Screen {
     document.addEventListener('visibilitychange', this.onVisibility);
     this.unsub = this.session.onChange((s) => this.render(s));
     if (__DEV__) (window as unknown as Record<string, unknown>).__orbitaPlayer = () => this.debugState();
+    this.engine.setRect(null);
     this.open(this.current);
   }
 
   unmount(): void {
     if (this.onExit) this.onExit(this.current, this.index);
-    this.session.stop();
     if (this.unsub) this.unsub();
+    // a TV ao vivo pega o stream de volta para a mini janela; senão, para
+    if (this.handoff.keepAlive) this.handoff.keepAlive(this.session, this.current);
+    else this.session.stop();
     for (const tm of [this.zapTimer, this.osdTimer, this.digitTimer]) if (tm) clearTimeout(tm);
     document.removeEventListener('visibilitychange', this.onVisibility);
     document.body.classList.remove('playing');
@@ -179,6 +199,12 @@ export class PlayerScreen implements Screen {
       this.showError(t('player.fail.noUrl'));
       return;
     }
+    // mesmo stream já aberto (veio da mini janela): só continua
+    const st = this.session.state.status;
+    if (url === this.session.currentUrl && st !== 'idle' && st !== 'failed') {
+      this.render(this.session.state);
+      return;
+    }
     this.session.play(url);
   }
 
@@ -194,7 +220,9 @@ export class PlayerScreen implements Screen {
       const gk = this.source.import && this.source.import.gk;
       if (!gk) return;
       const from = this.pending || this.current;
-      lookup = this.ctx.data.call('channels.neighbor', gk, from.order, dir);
+      // canal de favoritos/recentes é uma cópia sem posição (order 0): acha o da lista pelo número
+      const base = from.order ? Promise.resolve<Channel | null>(from) : this.ctx.data.call('channels.byNumber', gk, from.num);
+      lookup = base.then((b) => this.ctx.data.call('channels.neighbor', gk, b ? b.order : 0, dir));
     }
     void lookup.then((next) => {
       if (seq !== this.zapSeq || !next) return;
@@ -239,6 +267,7 @@ export class PlayerScreen implements Screen {
   }
 
   private paintChannel(ch: Channel): void {
+    this.paintEpg(ch);
     this.osdNum.textContent = String(ch.num);
     this.osdName.textContent = ch.name;
     this.osdFav.classList.toggle('hidden', !this.ctx.library.isFavorite(this.source.id, ch));
@@ -250,6 +279,19 @@ export class PlayerScreen implements Screen {
       this.osdLogo.classList.add('hidden');
       this.osdLogo.removeAttribute('src');
     }
+  }
+
+  private paintEpg(ch: Channel): void {
+    const seq = ++this.epgSeq;
+    if (!this.source.epg) {
+      clear(this.osdEpg);
+      return;
+    }
+    void scheduleFor(this.ctx.data, this.source, ch, 2)
+      .then((list) => {
+        if (seq === this.epgSeq) renderNowNext(this.osdEpg, list);
+      })
+      .catch(() => undefined);
   }
 
   private render(s: SessionState): void {
@@ -292,6 +334,8 @@ export class PlayerScreen implements Screen {
   }
 
   private showOsd(sticky = false): void {
+    // OSD reaparecendo: atualiza a barra de progresso do programa
+    if (!this.osd.classList.contains('visible') && !this.pending) this.paintEpg(this.current);
     this.osd.classList.add('visible');
     if (this.osdTimer) clearTimeout(this.osdTimer);
     if (!sticky) this.osdTimer = setTimeout(() => this.osd.classList.remove('visible'), OSD_MS);

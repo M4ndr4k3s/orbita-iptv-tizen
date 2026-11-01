@@ -29,6 +29,7 @@ import { t, type I18nKey } from '../services/i18n';
 import { ImportService } from '../services/importService';
 import { importWithProgress, importInBackground } from '../screens/importFlow';
 
+declare const __DEV__: boolean;
 declare const __APP_VERSION__: string;
 
 // seções ainda não implementadas e o marco do plano em que entram
@@ -85,6 +86,7 @@ class App implements AppContext {
     if (id === 'lists') return new ListsScreen(this);
     // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
     if (id === 'live') return new LiveScreen(this, 'all');
+    if (id === 'guide') return new LiveScreen(this, 'guide');
     if (id === 'favorites') return new LiveScreen(this, 'fav');
     if (id === 'history') return new LiveScreen(this, 'recent');
     const p = PENDING[id] || (['about', 'nav.home', 0] as [IconName, I18nKey, number]);
@@ -102,9 +104,19 @@ class App implements AppContext {
    * intervalo de atualização vencido atualiza em segundo plano.
    */
   startAutoRefresh(): void {
+    // só em builds de teste: estado do guia para os roteiros (sem URL nem credenciais)
+    if (__DEV__) {
+      (window as unknown as Record<string, unknown>).__orbitaEpg = () =>
+        this.sources.list().map((s) => ({ name: s.name, epg: s.epg, error: s.epgError, running: this.imports.isEpgRunning(s.id) }));
+    }
     const check = (atBoot: boolean) => {
       const s = this.sources.active();
-      if (!s || this.imports.isRunning(s.id) || !this.imports.isDue(s)) return;
+      if (!s || this.imports.isRunning(s.id)) return;
+      if (!this.imports.isDue(s)) {
+        // lista em dia: o guia pode estar vencido sozinho
+        if (s.import && this.imports.isEpgDue(s)) void this.imports.runEpg(s);
+        return;
+      }
       if (!s.import && atBoot && !isOverlayOpen()) void importWithProgress(this.imports, s);
       else if (s.import) importInBackground(this.imports, s);
     };

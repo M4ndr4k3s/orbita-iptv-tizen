@@ -66,6 +66,16 @@ export class PlaybackSession {
     return this.st;
   }
 
+  /** URL em reprodução (vazia se parada). Não exibir/logar: pode ter credenciais. */
+  get currentUrl(): string {
+    return this.url;
+  }
+
+  /** Volta a escutar o motor (outra sessão pode ter assumido o listener). */
+  attach(): void {
+    this.engine.setListener((e) => this.onEngine(e));
+  }
+
   onChange(fn: (s: SessionState) => void): () => void {
     this.listeners.push(fn);
     return () => {

@@ -1,7 +1,7 @@
 // Motor AVPlay (webapis.avplay): decodificação por hardware da TV Samsung.
 // O vídeo é desenhado numa camada atrás do HTML, no retângulo do <object>.
 
-import type { EngineEvent, PlayerEngine, StreamInfo } from './engine';
+import type { EngineEvent, PlayerEngine, StreamInfo, VideoRect } from './engine';
 
 interface AVPlayListener {
   onbufferingstart?(): void;
@@ -41,6 +41,8 @@ export interface AVPlay {
   restore(): void;
 }
 
+const PREPARE_GUARD_MS = 30000;
+
 export function getAvplay(): AVPlay | null {
   const w = window.webapis as { avplay?: AVPlay } | undefined;
   return w && w.avplay ? w.avplay : null;
@@ -60,6 +62,11 @@ export class AvplayEngine implements PlayerEngine {
   private listener: (e: EngineEvent) => void = () => undefined;
   private started = false;
   private openSeq = 0;
+  private rect: VideoRect | null = null;
+  private preparing = false;
+  private prepSeq = 0;
+  private next: { url: string; seq: number } | 'stop' | null = null;
+  private prepTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private av: AVPlay) {
     // o AVPlay precisa de um <object type="application/avplayer"> no documento
@@ -75,12 +82,45 @@ export class AvplayEngine implements PlayerEngine {
     this.listener = fn;
   }
 
+  /**
+   * O AVPlay da TV cai (o app inteiro fecha) se receber stop/close/open enquanto
+   * um prepareAsync ainda não respondeu — acontecia ao trocar rápido de canal com
+   * a mini janela. Então as operações são serializadas: durante o preparo, só a
+   * última pedida fica guardada e roda quando o preparo responde.
+   */
   open(url: string): void {
-    const seq = ++this.openSeq;
+    this.openSeq++;
+    if (this.preparing) {
+      this.next = { url, seq: this.openSeq };
+      return;
+    }
+    this.doOpen(url, this.openSeq);
+  }
+
+  stop(): void {
+    this.openSeq++;
+    if (this.preparing) {
+      this.next = 'stop';
+      return;
+    }
+    this.doStop();
+  }
+
+  private doOpen(url: string, seq: number): void {
+    this.doStop();
     this.started = false;
     // eventos de um stream antigo (troca rápida de canal) são descartados
     const emit = (e: EngineEvent) => {
       if (seq === this.openSeq) this.listener(e);
+    };
+    const pid = ++this.prepSeq;
+    const prepared = () => {
+      // resposta atrasada de um preparo já abandonado pelo vigia: ignora
+      if (pid !== this.prepSeq) return true;
+      if (this.prepTimer) clearTimeout(this.prepTimer);
+      this.prepTimer = null;
+      this.preparing = false;
+      return this.runNext();
     };
     try {
       this.av.open(url);
@@ -102,26 +142,68 @@ export class AvplayEngine implements PlayerEngine {
         onsubtitlechange: () => undefined,
         ondrmevent: () => undefined,
       });
-      this.av.setDisplayRect(0, 0, 1920, 1080);
+      this.applyRect();
       this.av.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
+      this.preparing = true;
+      // preparo que nunca responde: libera a fila (a sessão já terá desistido por timeout)
+      this.prepTimer = setTimeout(() => {
+        this.prepTimer = null;
+        this.prepSeq++;
+        this.preparing = false;
+        if (!this.runNext()) this.doStop();
+      }, PREPARE_GUARD_MS);
       this.av.prepareAsync(
         () => {
-          if (seq !== this.openSeq) return;
+          if (prepared() || seq !== this.openSeq) return;
+          // o retângulo pode ter mudado durante o preparo (mini janela ↔ tela cheia)
+          this.applyRect();
           try {
             this.av.play();
           } catch (e) {
             emit({ type: 'error', code: errName(e) });
           }
         },
-        (e) => emit({ type: 'error', code: (e && e.name) || 'PLAYER_ERROR_PREPARE' }),
+        (e) => {
+          if (prepared()) return;
+          emit({ type: 'error', code: (e && e.name) || 'PLAYER_ERROR_PREPARE' });
+        },
       );
     } catch (e) {
+      this.preparing = false;
       emit({ type: 'error', code: errName(e) });
     }
   }
 
-  stop(): void {
-    this.openSeq++;
+  /** Executa a operação guardada durante o preparo; true se havia uma. */
+  private runNext(): boolean {
+    const n = this.next;
+    this.next = null;
+    if (!n) return false;
+    if (n === 'stop') this.doStop();
+    else if (n.seq === this.openSeq) this.doOpen(n.url, n.seq);
+    else this.doStop();
+    return true;
+  }
+
+  setRect(r: VideoRect | null): void {
+    this.rect = r;
+    // durante o preparo não mexe (aplicado quando ele responder); sem stream, no próximo open()
+    if (this.preparing) return;
+    const st = this.state();
+    if (st === 'READY' || st === 'PLAYING' || st === 'PAUSED') this.applyRect();
+  }
+
+  private applyRect(): void {
+    const r = this.rect;
+    try {
+      if (r) this.av.setDisplayRect(Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h));
+      else this.av.setDisplayRect(0, 0, 1920, 1080);
+    } catch {
+      /* estado sem vídeo */
+    }
+  }
+
+  private doStop(): void {
     try {
       const s = this.av.getState();
       if (s !== 'NONE' && s !== 'IDLE') this.av.stop();

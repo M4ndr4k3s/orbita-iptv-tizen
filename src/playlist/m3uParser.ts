@@ -24,6 +24,8 @@ export class M3uParser {
   skipped = 0;
   /** o arquivo começou com #EXTM3U (ou #EXTINF)? só é conhecido após o primeiro pedaço */
   isM3u: boolean | null = null;
+  /** guia XMLTV indicado no cabeçalho (#EXTM3U url-tvg="..." / x-tvg-url) */
+  tvgUrl: string | undefined;
 
   push(chunk: string): M3uEntry[] {
     const out: M3uEntry[] = [];
@@ -87,6 +89,11 @@ export class M3uParser {
         if (this.pending) this.skipped++; // EXTINF sem URL
         this.pending = parseExtinf(line);
         if (this.pendingGroup) this.pending.extGroup = this.pendingGroup;
+      } else if (/^#EXTM3U/i.test(line) && this.tvgUrl === undefined) {
+        const a = parseExtinf('#EXTM3U:' + line.slice(7) + ',').attrs;
+        // várias URLs separadas por vírgula: usa a primeira
+        const u = (a['url-tvg'] || a['x-tvg-url'] || '').split(',')[0].trim();
+        if (u) this.tvgUrl = u;
       } else if (/^#EXTGRP:/i.test(line)) {
         this.pendingGroup = line.slice(8).trim();
         if (this.pending) this.pending.extGroup = this.pendingGroup;

@@ -3,6 +3,8 @@
 import type { Channel, Group, ImportStats, SavedEntry } from '../playlist/model';
 import type { ImportErrorCode, ImportProgress } from '../playlist/runImport';
 import type { Source } from '../playlist/source';
+import type { EpgStats, Programme } from '../epg/model';
+import type { EpgErrorCode } from '../epg/runEpg';
 
 /** Métodos que a interface pode chamar no worker (lista fechada). */
 export interface RpcMethods {
@@ -23,17 +25,22 @@ export interface RpcMethods {
   'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
   'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
   'library.addHistory': { args: [SavedEntry]; result: void };
+  /** programas de um canal (por tvg-id ou nome) que terminam depois de `from` */
+  'epg.schedule': { args: [string, string | null, string, number, number]; result: Programme[] };
 }
 export type RpcName = keyof RpcMethods;
 
 export type ToWorker =
   | { type: 'start'; jobId: number; gk: string; source: Pick<Source, 'kind' | 'url' | 'server' | 'username' | 'password'> }
   | { type: 'cancel'; jobId: number }
+  | { type: 'epgStart'; jobId: number; ek: string; url: string }
   | { type: 'rpc'; id: number; method: RpcName; args: unknown[] };
 
 export type FromWorker =
   | { type: 'progress'; jobId: number; progress: ImportProgress }
   | { type: 'done'; jobId: number; stats: ImportStats & { truncated: boolean } }
   | { type: 'error'; jobId: number; code: ImportErrorCode; status: number }
+  | { type: 'epgDone'; jobId: number; stats: EpgStats }
+  | { type: 'epgError'; jobId: number; code: EpgErrorCode; status: number }
   | { type: 'rpcResult'; id: number; ok: true; result: unknown }
   | { type: 'rpcResult'; id: number; ok: false; error: string };

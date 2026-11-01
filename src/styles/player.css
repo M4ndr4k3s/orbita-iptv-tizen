@@ -10,7 +10,15 @@
   background: #000;
 }
 #html5-player { object-fit: contain; }
-body:not(.playing) #av-player, body:not(.playing) #html5-player { visibility: hidden; }
+body:not(.playing):not(.preview) #av-player, body:not(.playing):not(.preview) #html5-player { visibility: hidden; }
+/* mini janela: o fundo vira uma moldura com um furo no lugar do vídeo. Sombra sem
+   desfoque = um retângulo sólido, mesmo custo do fundo normal (sem gradiente). */
+body.preview:not(.playing) #backdrop {
+  top: var(--pv-y); left: var(--pv-x); right: auto; bottom: auto;
+  width: var(--pv-w); height: var(--pv-h);
+  background: transparent;
+  box-shadow: 0 0 0 4000px var(--c-bg);
+}
 body.playing #backdrop { display: none; }
 .shell.immersive .sidebar { display: none; }
 .shell.immersive .screens { left: 0; }
@@ -73,3 +81,6 @@ body.playing #backdrop { display: none; }
   background: rgba(16, 18, 42, 0.96);
   border: 1px solid var(--c-border);
 }
+
+.osd-epg { margin-left: auto; width: 640px; flex: none; }
+.osd-epg .epg-now .epg-title { font-size: var(--fs-lg); }

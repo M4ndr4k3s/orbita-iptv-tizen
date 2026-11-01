@@ -17,11 +17,16 @@ import { idList, snapshotList, type ChannelList } from '../services/channelLists
 import { channelKey, type Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { settings } from '../storage/settings';
-import { PlayerScreen } from './player';
+import { PlayerScreen, type PlayerHandoff } from './player';
+import { LivePreview } from './livePreview';
+import { streamUrl } from '../player/streamUrl';
+import type { PlaybackSession, SessionState } from '../player/session';
+import { scheduleFor } from '../services/guide';
+import { renderNowNext, renderSchedule } from '../components/epgInfo';
 import { fmtInt } from '../services/format';
 import { t } from '../services/i18n';
 
-export type LiveStart = 'all' | 'fav' | 'recent';
+export type LiveStart = 'all' | 'fav' | 'recent' | 'guide';
 
 interface Cat {
   id: string;
@@ -35,6 +40,8 @@ interface Cat {
 const CAT_DEBOUNCE_MS = 250;
 const DIGIT_WAIT_MS = 1500;
 const LOGO_IDLE_MS = 300;
+// a grade do modo Guia mostra mais programas que o "Agora / A seguir"
+const GUIDE_ITEMS = 7;
 
 export class LiveScreen implements Screen {
   readonly root: HTMLElement;
@@ -61,8 +68,15 @@ export class LiveScreen implements Screen {
   private panelState!: HTMLElement;
   private digitBox!: HTMLElement;
   private subtitle!: HTMLElement;
+  private pvBox!: HTMLElement;
+  private pvStatus!: HTMLElement;
+  private epgBox!: HTMLElement;
+  private epgSeq = 0;
+  private preview: LivePreview | null = null;
+  private readonly guideMode: boolean;
 
   constructor(private ctx: AppContext, private start: LiveStart = 'all') {
+    this.guideMode = start === 'guide';
     this.body = el('div', { class: 'live-body' });
     this.root = el('div', { class: 'screen live' }, [this.body]);
   }
@@ -86,11 +100,14 @@ export class LiveScreen implements Screen {
   unmount(): void {
     for (const u of this.unsub) u();
     for (const tm of [this.catTimer, this.digitTimer, this.idleTimer]) if (tm) clearTimeout(tm);
+    if (this.preview) this.preview.stop();
   }
 
   /** Ao voltar do player: atualiza contagens de Recentes/Favoritos. */
   show(): void {
     if (this.cats) void this.refreshLibraryCounts();
+    // voltou da tela cheia: o vídeo encolhe de novo para a janela
+    if (this.preview) this.preview.layout();
   }
 
   onKey(key: RemoteKey): boolean {
@@ -126,7 +143,7 @@ export class LiveScreen implements Screen {
     const src = this.source!;
     this.subtitle = el('p', { class: 'screen-sub' });
     const head = el('div', { class: 'screen-head live-head' }, [
-      el('div', {}, [el('h1', { class: 'screen-title', text: t('live.title') }), this.subtitle]),
+      el('div', {}, [el('h1', { class: 'screen-title', text: this.guideMode ? t('guide.title') : t('live.title') }), this.subtitle]),
       button(t('live.search'), { icon: 'search', onClick: () => void this.search() }),
     ]);
 
@@ -162,14 +179,18 @@ export class LiveScreen implements Screen {
     this.panelGroup = el('div', { class: 'lp-group' });
     this.panelState = el('div', { class: 'lp-state' });
     this.digitBox = el('div', { class: 'osd-digits hidden' });
+    this.pvStatus = el('div', { class: 'lp-pv-status' });
+    this.pvBox = el('div', { class: 'lp-video' }, [this.panelLogo, this.pvStatus]);
+    this.epgBox = el('div', { class: this.guideMode ? 'lp-epg guide' : 'lp-epg' });
     const panel = el('div', { class: 'live-panel' }, [
-      el('div', { class: 'lp-logo-box' }, [this.panelLogo]),
-      this.panelNum,
+      this.pvBox,
+      el('div', { class: 'lp-line' }, [this.panelNum, this.panelState]),
       this.panelName,
       this.panelGroup,
-      this.panelState,
-      el('p', { class: 'lp-hint', text: t('live.hint') }),
+      this.epgBox,
+      el('p', { class: 'lp-hint', text: this.guideMode ? t('live.hintGuide') : t('live.hint') }),
     ]);
+    if (settings.get().livePreview) this.preview = new LivePreview(this.pvBox, (st) => this.paintPreview(st));
 
     this.body.appendChild(head);
     this.body.appendChild(el('div', { class: 'live-cols' }, [this.cats.root, this.chans.root, panel]));
@@ -194,9 +215,11 @@ export class LiveScreen implements Screen {
     for (const g of groups) if (g.kind === 'live') this.catItems.push({ id: 'g:' + g.name, kind: 'group', label: g.name, count: g.count, group: g.name });
     // Favoritos/Histórico pelo menu abrem na categoria pedida; senão, a última usada,
     // exceto se ela estiver vazia (abrir numa lista vazia não ajuda ninguém)
-    let wanted = this.start !== 'all' ? this.start : settings.get().lastLiveCat || 'all';
+    // (o Guia abre como a TV ao vivo: na última categoria usada)
+    const byMemory = this.start === 'all' || this.start === 'guide';
+    let wanted = byMemory ? settings.get().lastLiveCat || 'all' : this.start;
     const remembered = this.catItems.find((c) => c.id === wanted);
-    if (this.start === 'all' && (!remembered || remembered.count === 0)) wanted = 'all';
+    if (byMemory && (!remembered || remembered.count === 0)) wanted = 'all';
     const idx = Math.max(0, this.catItems.findIndex((c) => c.id === wanted));
     this.cats.setCount(this.catItems.length, idx);
     this.applyCategoryNow();
@@ -240,13 +263,31 @@ export class LiveScreen implements Screen {
   private play(ch: Channel, index: number): void {
     const src = this.source!;
     this.ctx.push(
-      new PlayerScreen(this.ctx, src, ch, this.list, index, (last, lastIndex) => {
-        this.playingKey = channelKey(last);
-        // seleção acompanha o último canal assistido, se ainda for desta lista
-        if (lastIndex >= 0 && lastIndex < this.chans.size) this.chans.select(lastIndex);
-        this.chans.refresh();
-      }),
+      new PlayerScreen(
+        this.ctx,
+        src,
+        ch,
+        this.list,
+        index,
+        (last, lastIndex) => {
+          this.playingKey = channelKey(last);
+          // seleção acompanha o último canal assistido, se ainda for desta lista
+          if (lastIndex >= 0 && lastIndex < this.chans.size) this.chans.select(lastIndex);
+          this.chans.refresh();
+        },
+        this.handoff(ch),
+      ),
     );
+  }
+
+  /** Mini janela <-> tela cheia: passa o stream adiante e o recebe de volta, sem reabrir. */
+  private handoff(ch: Channel): PlayerHandoff {
+    const pv = this.preview;
+    if (!pv) return {};
+    let session: PlaybackSession | undefined;
+    if (pv.isShowing(channelKey(ch))) session = pv.take() || undefined;
+    else pv.stop();
+    return { session, keepAlive: (s, last) => pv.adopt(s, channelKey(last)) };
   }
 
   private async toggleFavorite(): Promise<void> {
@@ -321,7 +362,7 @@ export class LiveScreen implements Screen {
       if (!ch) return toast(t('player.noChannel', { n }), 'error');
       // número vale para a lista inteira: sem lista, o CH± do player usa o vizinho
       // direto no banco (buscar os 88 mil ids antes atrasava a abertura em segundos)
-      this.ctx.push(new PlayerScreen(this.ctx, this.source!, ch));
+      this.ctx.push(new PlayerScreen(this.ctx, this.source!, ch, null, 0, undefined, this.handoff(ch)));
     });
   }
 
@@ -334,11 +375,49 @@ export class LiveScreen implements Screen {
     this.scrolling = true;
     this.paintPanel(ch, false);
     if (this.idleTimer) clearTimeout(this.idleTimer);
+    if (this.preview) this.preview.cancel();
     this.idleTimer = setTimeout(() => {
       this.scrolling = false;
       this.chans.refresh();
-      this.paintPanel(this.chans.item(), true);
+      const cur = this.chans.item();
+      this.paintPanel(cur, true);
+      this.loadEpg(cur);
+      if (this.preview && cur && cur.name) this.preview.want(channelKey(cur), streamUrl(cur, this.source!));
     }, LOGO_IDLE_MS);
+  }
+
+  /** Estado da mini janela: transparente só quando o vídeo do canal selecionado está na tela. */
+  private paintPreview(st: SessionState | null): void {
+    const cur = this.chans ? this.chans.item() : null;
+    const mine = !!cur && !!this.preview && this.preview.key === channelKey(cur);
+    const live = mine && !!st && st.status === 'playing';
+    this.pvBox.classList.toggle('live', live);
+    let text = '';
+    if (mine && st) {
+      if (st.status === 'connecting' || st.status === 'buffering' || st.status === 'retrying') text = t('player.connecting');
+      else if (st.status === 'failed') text = t('live.previewFail');
+    }
+    this.pvStatus.textContent = text;
+  }
+
+  private loadEpg(ch: Channel | null): void {
+    const seq = ++this.epgSeq;
+    const src = this.source!;
+    clear(this.epgBox);
+    if (!ch) return;
+    if (!src.epg) {
+      // sem guia ainda: diz o motivo (baixando, falhou ou a lista não tem)
+      const msg = this.ctx.imports.isEpgRunning(src.id) ? t('epg.loading') : src.epgError ? t('epg.failed') : t('epg.noSource');
+      this.epgBox.appendChild(el('div', { class: 'epg-none', text: msg }));
+      return;
+    }
+    void scheduleFor(this.ctx.data, src, ch, this.guideMode ? GUIDE_ITEMS : 2)
+      .then((list) => {
+        if (seq !== this.epgSeq) return;
+        if (this.guideMode) renderSchedule(this.epgBox, list);
+        else renderNowNext(this.epgBox, list);
+      })
+      .catch(() => undefined);
   }
 
   private renderChannel(row: HTMLElement, ch: Channel | null): void {
@@ -386,6 +465,12 @@ export class LiveScreen implements Screen {
   }
 
   private paintPanel(ch: Channel | null, withLogo = true): void {
+    if (this.preview) this.paintPreview(this.preview.state());
+    // rolando: o guia do canal anterior sai na hora; o novo entra quando a lista para
+    if (!withLogo) {
+      this.epgSeq++;
+      clear(this.epgBox);
+    }
     if (!ch) {
       this.panelNum.textContent = '';
       this.panelName.textContent = '';

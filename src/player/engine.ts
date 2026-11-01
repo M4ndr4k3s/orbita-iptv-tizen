@@ -15,6 +15,13 @@ export interface StreamInfo {
   subtitleTracks: Array<{ index: number; language: string }>;
 }
 
+export interface VideoRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface PlayerEngine {
   readonly name: string;
   /** começa a tocar a URL; eventos chegam pelo listener */
@@ -26,6 +33,8 @@ export interface PlayerEngine {
   state(): string;
   info(): StreamInfo | null;
   setListener(fn: (e: EngineEvent) => void): void;
+  /** área do vídeo em px da tela 1920×1080; null = tela cheia */
+  setRect(r: VideoRect | null): void;
   /** app foi para segundo plano / voltou */
   suspend(): void;
   restore(): void;

@@ -2,6 +2,7 @@
 
 import { normalizeHttpUrl, cleanText, cleanCredential, LIMITS, type ValidationError } from '../utils/validate';
 import type { ImportStats } from './model';
+import type { EpgStats } from '../epg/model';
 
 export type SourceKind = 'm3u' | 'xtream';
 
@@ -28,6 +29,12 @@ export interface Source {
   import?: ImportStats;
   /** código do erro da última tentativa de importação, se falhou */
   importError?: string;
+  /** último guia (EPG) importado */
+  epg?: EpgStats;
+  /** código do erro da última tentativa de baixar o guia */
+  epgError?: string;
+  /** quando o guia foi tentado pela última vez (evita repetir falhas a cada 30 min) */
+  epgTriedAt?: number;
 }
 
 /** Dados vindos do formulário, ainda não validados. */
@@ -120,4 +127,16 @@ export function inputFromSource(s: Source): SourceInput {
     epgUrl: s.epgUrl || '',
     refreshHours: s.refreshHours,
   };
+}
+
+/**
+ * URL do guia: a informada pelo usuário; senão a do Xtream (xmltv.php); senão a
+ * indicada no cabeçalho da lista M3U. A do Xtream leva a senha: nunca logar.
+ */
+export function epgUrlFor(s: Source): string | null {
+  if (s.epgUrl) return s.epgUrl;
+  if (s.kind === 'xtream' && s.server && s.username && s.password) {
+    return s.server + '/xmltv.php?username=' + encodeURIComponent(s.username) + '&password=' + encodeURIComponent(s.password);
+  }
+  return (s.import && s.import.tvgUrl) || null;
 }

@@ -87,22 +87,21 @@ export async function readHead(res: Response, bytes: number): Promise<string> {
 }
 
 /**
- * Lê o corpo como texto em pedaços. Aborta se o servidor ficar `idleMs` sem
+ * Lê o corpo em pedaços de bytes. Aborta se o servidor ficar `idleMs` sem
  * mandar dados (conexões IPTV às vezes "congelam" no meio do download).
  */
-export async function* streamText(
+export async function* streamBytes(
   url: string,
   opts: FetchOpts & { idleMs?: number; onBytes?: (total: number) => void } = {},
-): AsyncGenerator<string> {
+): AsyncGenerator<Uint8Array> {
   const res = await fetchWithTimeout(url, opts);
   if (!res.body) {
-    const t = await res.text();
-    if (opts.onBytes) opts.onBytes(t.length);
-    yield t;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (opts.onBytes) opts.onBytes(buf.byteLength);
+    yield buf;
     return;
   }
   const reader = res.body.getReader();
-  const decoder = new TextDecoder('utf-8');
   const idleMs = opts.idleMs || 30000;
   let total = 0;
   // o fetch já devolveu os cabeçalhos: o cancelamento do corpo é tratado aqui
@@ -130,14 +129,23 @@ export async function* streamText(
       if (chunk.done) break;
       total += chunk.value.byteLength;
       if (opts.onBytes) opts.onBytes(total);
-      yield decoder.decode(chunk.value, { stream: true });
+      yield chunk.value;
     }
-    const tail = decoder.decode();
-    if (tail) yield tail;
   } finally {
     if (signal && onAbort) signal.removeEventListener('abort', onAbort);
     reader.cancel().catch(() => undefined);
   }
+}
+
+/** Mesmo que streamBytes, decodificado como UTF-8. */
+export async function* streamText(
+  url: string,
+  opts: FetchOpts & { idleMs?: number; onBytes?: (total: number) => void } = {},
+): AsyncGenerator<string> {
+  const decoder = new TextDecoder('utf-8');
+  for await (const b of streamBytes(url, opts)) yield decoder.decode(b, { stream: true });
+  const tail = decoder.decode();
+  if (tail) yield tail;
 }
 
 export async function fetchJson<T>(url: string, maxBytes: number, opts: FetchOpts = {}): Promise<T> {

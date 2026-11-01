@@ -7,6 +7,7 @@ import { JsonArrayStream } from './jsonStream';
 import { ChannelBuilder, type ImportSink, type XtreamStream } from './importer';
 import type { ImportStats } from './model';
 import type { Source } from './source';
+import { normalizeHttpUrl } from '../utils/validate';
 
 export type ImportErrorCode = NetErrorCode | 'notM3u' | 'badResponse' | 'empty' | 'storage';
 
@@ -44,6 +45,7 @@ export async function runImport(src: ImportSource, gk: string, sink: ImportSink,
     bytes = n;
   };
 
+  let tvgUrl: string | undefined;
   try {
     if (src.kind === 'm3u') {
       const parser = new M3uParser();
@@ -55,6 +57,10 @@ export async function runImport(src: ImportSource, gk: string, sink: ImportSink,
       }
       for (const e of parser.end()) await builder.addM3u(e);
       if (parser.isM3u !== true) throw new ImportError('notM3u');
+      if (parser.tvgUrl) {
+        const u = normalizeHttpUrl(parser.tvgUrl);
+        if (u.ok) tvgUrl = u.value;
+      }
     } else {
       const creds = { server: src.server || '', username: src.username || '', password: src.password || '' };
       phase = 'categories';
@@ -87,5 +93,6 @@ export async function runImport(src: ImportSource, gk: string, sink: ImportSink,
   }
   if (!builder.count) throw new ImportError('empty');
   const stats = await builder.finish({ importedAt, bytes });
+  if (tvgUrl) stats.tvgUrl = tvgUrl;
   return { ...stats, truncated: builder.truncated };
 }

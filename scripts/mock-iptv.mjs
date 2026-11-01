@@ -8,8 +8,12 @@
 //   /lista.m3u          lista pequena (MOCK_CHANNELS, padrão 30)
 //   /grande.m3u?n=N     lista sintética grande (padrão 100000), enviada em pedaços
 //   /pagina.html        não é M3U        /lento.m3u   responde após 40 s
+//   /epg.xml?n=N  /epg.xml.gz?n=N   guia XMLTV sintético (programas de 30 min, -2 h a +24 h)
+//   /xmltv.php          guia da conta Xtream (mesmas credenciais)
+//   /lista-epg.m3u      lista pequena com url-tvg no cabeçalho apontando para /epg.xml.gz
 //   /player_api.php     login + get_live_categories + get_live_streams (n= via usuário "teste100k" = 100 mil)
 import { createServer } from 'node:http';
+import { gzipSync } from 'node:zlib';
 import { networkInterfaces } from 'node:os';
 
 const PORT = Number(process.argv[2] || 8090);
@@ -55,6 +59,31 @@ function streamBig(res, n, lineFn, head = '', tail = '') {
   tick();
 }
 
+// XMLTV de teste: canal 2 só casa pelo nome ("Canal de Teste 2 HD"), para testar o casamento por nome
+function xmltv(n) {
+  const pad = (x) => String(x).padStart(2, '0');
+  const fmt = (ms) => {
+    const d = new Date(ms);
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + '00 +0000';
+  };
+  const slot = 30 * 60000;
+  const t0 = Math.floor(Date.now() / slot) * slot - 4 * slot;
+  const parts = ['<?xml version="1.0" encoding="UTF-8"?>\n<tv generator-info-name="mock">\n'];
+  for (let i = 1; i <= n; i++) {
+    const id = i === 2 ? 'outro-id-2' : 'teste' + i;
+    parts.push(`<channel id="${id}"><display-name lang="pt">Canal de Teste ${i}${i === 2 ? ' HD' : ''}</display-name></channel>\n`);
+  }
+  for (let i = 1; i <= n; i++) {
+    const id = i === 2 ? 'outro-id-2' : 'teste' + i;
+    for (let k = 0; k < 52; k++) {
+      const st = t0 + k * slot;
+      parts.push(`<programme start="${fmt(st)}" stop="${fmt(st + slot)}" channel="${id}"><title lang="pt">Programa ${k + 1} &amp; Cia (canal ${i})</title><desc lang="pt"><![CDATA[Descrição do programa ${k + 1} <teste>]]></desc></programme>\n`);
+    }
+  }
+  parts.push('</tv>\n');
+  return parts.join('');
+}
+
 function auth(username, password) {
   if (password !== 'teste123' || !['teste', 'vencido', 'teste100k'].includes(username)) return { user_info: { auth: 0 } };
   return {
@@ -92,6 +121,28 @@ createServer((req, res) => {
   }
   if (u.pathname === '/pagina.html') return send(200, 'text/html; charset=utf-8', '<!DOCTYPE html><html><body>não é M3U</body></html>');
   if (u.pathname === '/lento.m3u') return setTimeout(() => send(200, 'audio/x-mpegurl', smallM3u()), 40000);
+  if (u.pathname === '/epg.xml') return send(200, 'application/xml; charset=utf-8', xmltv(Number(p.get('n') || N_CHANNELS)));
+  if (u.pathname === '/epg.xml.gz') {
+    res.writeHead(200, { 'Content-Type': 'application/gzip', 'Access-Control-Allow-Origin': '*' });
+    return res.end(gzipSync(xmltv(Number(p.get('n') || N_CHANNELS))));
+  }
+  if (u.pathname === '/xmltv.php') {
+    const a = auth(p.get('username'), p.get('password'));
+    if (a.user_info.auth !== 1) return send(401, 'text/plain', 'unauthorized');
+    return send(200, 'application/xml; charset=utf-8', xmltv(p.get('username') === 'teste100k' ? 2000 : N_CHANNELS));
+  }
+  if (u.pathname === '/lista-epg.m3u') {
+    // URLs distintas por canal (?ch=) para a deduplicação não juntar os canais; continuam tocáveis
+    const n = Number(p.get('n') || N_CHANNELS);
+    let body = `#EXTM3U url-tvg="http://${req.headers.host}/epg.xml.gz?n=${n}"
+`;
+    for (let i = 1; i <= n; i++) {
+      body += `#EXTINF:-1 tvg-id="teste${i}" group-title="Teste EPG",Canal de Teste ${i}
+${STREAMS[i % STREAMS.length]}?ch=${i}
+`;
+    }
+    return send(200, 'audio/x-mpegurl; charset=utf-8', body);
+  }
   if (u.pathname === '/player_api.php') {
     const a = auth(p.get('username'), p.get('password'));
     const action = p.get('action');

@@ -7,6 +7,8 @@ export interface Settings {
   language: string;
   /** última categoria aberta em TV ao vivo */
   lastLiveCat: string;
+  /** mini janela com o vídeo do canal selecionado na TV ao vivo */
+  livePreview: boolean;
 }
 
 const KEY = 'orbita.settings.v1';
@@ -16,6 +18,7 @@ const DEFAULTS: Settings = {
   askSourceOnStart: true,
   language: 'pt-BR',
   lastLiveCat: '',
+  livePreview: true,
 };
 
 export interface SettingsBackend {

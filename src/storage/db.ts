@@ -43,6 +43,11 @@ const MIGRATIONS: Array<(db: IDBDatabase, tx: IDBTransaction) => void> = [
   (db) => {
     db.createObjectStore('search', { keyPath: 'gk' });
   },
+  // v8: guia de programação (EPG) por geração do guia; epgmeta casa canais da lista com o guia
+  (db) => {
+    db.createObjectStore('epg', { keyPath: 'id' });
+    db.createObjectStore('epgmeta', { keyPath: 'id' });
+  },
 ];
 
 let dbPromise: Promise<IDBDatabase> | null = null;

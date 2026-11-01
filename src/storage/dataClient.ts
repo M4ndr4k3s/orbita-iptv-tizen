@@ -6,6 +6,7 @@ import type { Source } from '../playlist/source';
 import type { FromWorker, RpcMethods, RpcName, ToWorker } from '../workers/protocol';
 
 type ImportListener = (m: Extract<FromWorker, { type: 'progress' | 'done' | 'error' }>) => void;
+type EpgListener = (m: Extract<FromWorker, { type: 'epgDone' | 'epgError' }>) => void;
 
 const RPC_TIMEOUT_MS = 60000;
 
@@ -14,6 +15,7 @@ export class DataClient {
   private nextId = 1;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   private importListener: ImportListener | null = null;
+  private epgListener: EpgListener | null = null;
   /** chamado se o worker morrer (ex.: falta de memória) */
   onCrash: (() => void) | null = null;
 
@@ -47,6 +49,10 @@ export class DataClient {
     this.importListener = fn;
   }
 
+  onEpg(fn: EpgListener): void {
+    this.epgListener = fn;
+  }
+
   send(m: ToWorker): void {
     this.worker.postMessage(m);
   }
@@ -69,6 +75,10 @@ export class DataClient {
       clearTimeout(p.timer);
       if (m.ok) p.resolve(m.result);
       else p.reject(new Error(m.error));
+      return;
+    }
+    if (m.type === 'epgDone' || m.type === 'epgError') {
+      if (this.epgListener) this.epgListener(m);
       return;
     }
     if (this.importListener) this.importListener(m);

@@ -1,7 +1,7 @@
 // Motor <video> para o navegador de desenvolvimento (preview). Na TV usa-se o
 // AVPlay. Sem hls.js: aqui HLS só toca onde o navegador suporta nativamente.
 
-import type { EngineEvent, PlayerEngine, StreamInfo } from './engine';
+import type { EngineEvent, PlayerEngine, StreamInfo, VideoRect } from './engine';
 
 export class Html5Engine implements PlayerEngine {
   readonly name = 'html5';
@@ -64,6 +64,14 @@ export class Html5Engine implements PlayerEngine {
 
   info(): StreamInfo | null {
     return { width: this.video.videoWidth || undefined, height: this.video.videoHeight || undefined, audioTracks: [], subtitleTracks: [] };
+  }
+
+  setRect(r: VideoRect | null): void {
+    const st = this.video.style;
+    st.left = r ? r.x + 'px' : '';
+    st.top = r ? r.y + 'px' : '';
+    st.width = r ? r.w + 'px' : '';
+    st.height = r ? r.h + 'px' : '';
   }
 
   suspend(): void {

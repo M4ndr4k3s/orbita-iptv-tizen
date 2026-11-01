@@ -51,6 +51,8 @@ export interface ImportStats {
   groups: number;
   duplicates: number;
   skipped: number;
+  /** guia XMLTV indicado pela própria lista M3U (cabeçalho url-tvg) */
+  tvgUrl?: string;
 }
 
 export const FIELD_MAX = { name: 200, group: 120, url: 2048, tvgId: 120 };

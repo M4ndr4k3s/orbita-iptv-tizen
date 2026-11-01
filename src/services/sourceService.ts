@@ -5,6 +5,7 @@ import { newId } from '../storage/store';
 import type { SettingsStore } from '../storage/settings';
 import { sourceKey, type Source, type ValidSource } from '../playlist/source';
 import type { ImportStats } from '../playlist/model';
+import type { EpgStats } from '../epg/model';
 
 type Listener = () => void;
 
@@ -73,6 +74,12 @@ export class SourceService {
       lastError: changed ? undefined : cur.lastError,
       lastCheckAt: changed ? undefined : cur.lastCheckAt,
     };
+    // outro guia (ou outra conta): baixa de novo na próxima oportunidade
+    if (changed || (cur.epgUrl || '') !== (v.epgUrl || '')) {
+      s.epg = undefined;
+      s.epgError = undefined;
+      s.epgTriedAt = undefined;
+    }
     await this.store.put(s);
     this.cache = this.cache.map((x) => (x.id === id ? s : x));
     this.emit();
@@ -98,6 +105,18 @@ export class SourceService {
     this.cache = this.cache.map((x) => (x.id === id ? s : x));
     this.emit();
     return result.stats ? previous : undefined;
+  }
+
+  /** Registra o resultado de uma importação do guia. */
+  async setEpg(id: string, result: { stats?: EpgStats; error?: string }): Promise<void> {
+    const cur = this.get(id);
+    if (!cur) return;
+    const s: Source = result.stats
+      ? { ...cur, epg: result.stats, epgError: undefined, epgTriedAt: Date.now() }
+      : { ...cur, epgError: result.error, epgTriedAt: Date.now() };
+    await this.store.put(s);
+    this.cache = this.cache.map((x) => (x.id === id ? s : x));
+    this.emit();
   }
 
   async remove(id: string): Promise<void> {

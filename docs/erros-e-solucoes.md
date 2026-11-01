@@ -30,3 +30,7 @@
 | 2026-11-01 | Lista vazia logo depois de atualizar uma lista grande | Leituras esperavam o delete da geração antiga (~25 s) | Limpeza só depois de 60 s sem tecla (`IdleTasks`) |
 | 2026-11-01 | Número pelo controle demorava mais de 4 s com lista grande | Buscava os 88 mil ids antes de abrir o player | Abre na hora; o CH± usa o vizinho no banco |
 | 2026-11-01 | TV ao vivo abria numa categoria vazia | Restaurava a última categoria mesmo vazia | Categoria lembrada vazia cai em "Todos os canais" |
+| 2026-11-01 | App fechava sozinho ao trocar de canal rápido com a mini janela (lista real) | O AVPlay derruba o app se recebe stop/close/open ou setDisplayRect com um `prepareAsync` pendente | Operações do AVPlay em fila: durante o preparo só a última pedida fica guardada; vigia de 30 s se o preparo nunca responder (teste `avplay.test.ts`) |
+| 2026-11-01 | CH± não saía do canal quando "Assistir TV" retomava recentes com 1 só canal | Cópia do canal nos recentes não tem posição (order 0); o vizinho da posição 0 era o próprio canal 1 | Sem posição, acha o canal na lista pelo número antes de pedir o vizinho |
+| 2026-11-01 | Guia abria em "Favoritos" vazio | Categoria inicial "guide" não existe; caía na primeira da lista | Guia usa a mesma categoria lembrada da TV ao vivo |
+| 2026-11-01 | Roteiro de teste: lista do mock não cadastrava (`tecla não encontrada: C`) | Git Bash converte `/lista-epg.m3u` em `C:/Program Files/Git/...` | `MSYS_NO_PATHCONV=1` ao passar caminhos em variáveis E2E_ |

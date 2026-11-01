@@ -137,3 +137,25 @@ Experimento que achou a causa da rolagem lenta (`scripts/e2e/perf-scroll.js`): o
 
 Ainda não testado: guia rápido de programação no OSD, que depende do EPG (marco 7); controle físico; visual na tela da TV.
 Limitação conhecida: categoria ao vivo e categoria VOD com o mesmo nome compartilham o índice `gk_group`, então itens VOD podem aparecer nessa categoria ao vivo. É raro; a correção é incluir o tipo no índice.
+
+## Marco 7: guia de programação (EPG) e mini janela (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 96/96 (parser XMLTV com qualquer ponto de corte, entidades, CDATA, elemento gigante; .gz; janela de 4 dias; limites; erros; URL do guia; fila do AVPlay) |
+| `m7-epg.js`, mock com guia .gz no cabeçalho da lista | **TV** | 17/17 |
+| `m5-player.js` (regressão) | **TV** | 18/18 |
+| `m6-live.js` (regressão) | **TV** | 20/20 |
+| Guia da lista real (Xtream `xmltv.php`) | **TV** | 19.600 programas de 297 canais, 10 MB, 20,7 s em segundo plano |
+| Estresse: 35 trocas com a mini janela em intervalos de 0,3–4 s, lista real | **TV** | sem queda do app; heap +0 MB |
+
+Medições na TV:
+
+| Medida | Valor |
+|---|---|
+| Rolagem da lista com vídeo na mini janela | p50 17 ms, p95 24–34 ms por quadro |
+| Parar num canal até o vídeo aparecer na janela | 3,6–6,5 s (0,8 s de espera + abertura do stream) |
+| Janela → tela cheia | sem reconectar (stream continua) |
+| Heap JS | ~10 MB |
+
+Não testado: guia muito grande (centenas de MB); visual na tela física; controle físico. Na lista real, só 297 dos canais têm guia — os 40 primeiros de "Todos os canais" não tinham programação no XMLTV do provedor.

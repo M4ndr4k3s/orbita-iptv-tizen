@@ -5,6 +5,7 @@
 // único delete por intervalo de chaves.
 
 import { openDb } from './db';
+import { forgetEpgMeta } from './epgStore';
 import type { ImportSink, SearchIndex } from '../playlist/importer';
 import { pad8, type Channel, type Group } from '../playlist/model';
 
@@ -72,13 +73,17 @@ export async function markGeneration(gk: string, state: GenerationRecord['state'
  */
 export async function deleteGeneration(gk: string): Promise<void> {
   const db = await openDb();
-  const tx = db.transaction(['channels', 'groups', 'gens', 'search'], 'readwrite');
+  // a mesma limpeza serve às gerações do guia (EPG): cada store só tem as suas chaves
+  const tx = db.transaction(['channels', 'groups', 'gens', 'search', 'epg', 'epgmeta'], 'readwrite');
   tx.objectStore('channels').delete(genRange(gk));
   tx.objectStore('groups').delete(genRange(gk));
+  tx.objectStore('epg').delete(genRange(gk));
+  tx.objectStore('epgmeta').delete(gk);
   tx.objectStore('gens').delete(gk);
   tx.objectStore('search').delete(gk);
   await txDone(tx);
   if (searchCache && searchCache.gk === gk) searchCache = null;
+  forgetEpgMeta(gk);
 }
 
 /**
