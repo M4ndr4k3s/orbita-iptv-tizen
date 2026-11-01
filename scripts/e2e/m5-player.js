@@ -9,6 +9,8 @@ window.__E2E__ = (async () => {
   const check = (step, cond, got) => out.push({ ok: !!cond, step, got });
   const P = () => (window.__orbitaPlayer ? window.__orbitaPlayer() : null);
   const status = () => (P() ? P().session.status : 'sem player');
+  // identidade do canal: itens dos recentes/favoritos não têm posição (order = 0)
+  const chId = (c) => c.num + '|' + c.name;
   const heapMB = () => +(performance.memory.usedJSHeapSize / 1048576).toFixed(1);
   const waitSettled = (ms = 45000) => until(() => ['playing', 'failed'].indexOf(status()) >= 0, ms);
   // canais reais podem estar fora do ar: avança até achar um que toque
@@ -39,24 +41,24 @@ window.__E2E__ = (async () => {
   const before = P().channel;
   const tz = Date.now();
   press('chUp');
-  await until(() => P().channel.order !== before.order, 5000);
-  check('CH+ troca de canal', P().channel.order !== before.order, [before, P().channel]);
+  await until(() => chId(P().channel) !== chId(before), 5000);
+  check('CH+ troca de canal', chId(P().channel) !== chId(before), [before, P().channel]);
   await waitSettled();
   metrics.trocaCanalMs = Date.now() - tz;
   metrics.trocaStatus = status();
 
-  // CH+ rápido 3x: só abre o último (debounce)
-  const b3 = P().channel.order;
-  press('chUp'); await sleep(120); press('chUp'); await sleep(120); press('chUp');
+  // CH+ rápido 2x: só abre o último (debounce). 2 e não 3: nos recentes a lista pode ter 3 itens e dar a volta
+  const b3 = chId(P().channel);
+  press('chUp'); await sleep(120); press('chUp');
   await sleep(1500);
-  check('3 trocas rápidas pulam 3 canais', P().channel.order !== b3, [b3, P().channel]);
+  check('3 trocas rápidas mudam o canal', chId(P().channel) !== b3, [b3, P().channel]);
   await waitSettled();
 
   // CH− volta
-  const bm = P().channel.order;
+  const bm = chId(P().channel);
   press('chDown');
-  await until(() => P().channel.order !== bm, 5000);
-  check('CH− troca para o anterior', P().channel.order < bm || P().channel.order > bm, P().channel);
+  await until(() => chId(P().channel) !== bm, 5000);
+  check('CH− troca de canal', chId(P().channel) !== bm, P().channel);
   await waitSettled();
 
   // número pelo controle

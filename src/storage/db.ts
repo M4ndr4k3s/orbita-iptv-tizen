@@ -32,6 +32,17 @@ const MIGRATIONS: Array<(db: IDBDatabase, tx: IDBTransaction) => void> = [
   (_db, tx) => {
     tx.objectStore('channels').createIndex('gk_num', ['gk', 'num']);
   },
+  // v6: lista "Todos os canais" por tipo; favoritos e histórico por fonte
+  (db, tx) => {
+    tx.objectStore('channels').createIndex('gk_kind', ['gk', 'kind']);
+    db.createObjectStore('favorites', { keyPath: 'id' }).createIndex('sourceId', 'sourceId');
+    db.createObjectStore('history', { keyPath: 'id' }).createIndex('sourceId', 'sourceId');
+  },
+  // v7: índice de busca de cada geração num registro só. Montá-lo lendo canal por
+  // canal levou 42 s com 88 mil itens na TV; uma leitura única é bem mais rápida.
+  (db) => {
+    db.createObjectStore('search', { keyPath: 'gk' });
+  },
 ];
 
 let dbPromise: Promise<IDBDatabase> | null = null;

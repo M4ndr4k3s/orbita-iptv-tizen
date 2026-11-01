@@ -17,9 +17,10 @@ html, body {
 #backdrop {
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0;
-  background: radial-gradient(1200px 700px at 80% -10%, rgba(124, 92, 255, 0.22), transparent 60%),
-    radial-gradient(900px 600px at -10% 110%, rgba(61, 214, 245, 0.12), transparent 60%),
-    var(--c-bg);
+  /* cor sólida de propósito: com gradientes radiais em tela cheia, cada repintura
+     por cima (ex.: rolar a lista de canais) custava 35–95 ms por quadro na TV;
+     sólido = 17 ms (medido com scripts/e2e/perf-scroll.js) */
+  background: var(--c-bg);
   z-index: 0;
 }
 

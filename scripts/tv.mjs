@@ -106,12 +106,14 @@ if (cmd === 'debug') {
       // roteiro e2e: injeta helpers.js e avalia o arquivo (que retorna uma Promise de verificações)
       const vars = Object.entries(process.env).filter(([k]) => k.startsWith('E2E_'))
         .map(([k, v]) => `window.__${k.slice(4)}__=${JSON.stringify(v)};`).join('');
-      const code = vars + readFileSync(join(ROOT, 'scripts/e2e/helpers.js'), 'utf8') + ';' + readFileSync(rest[0], 'utf8') + ';window.__E2E__';
+      // exceção no roteiro vira uma verificação com a pilha (em vez de só a mensagem)
+      const code = vars + readFileSync(join(ROOT, 'scripts/e2e/helpers.js'), 'utf8') + ';' + readFileSync(rest[0], 'utf8') +
+        ";window.__E2E__.catch(function(e){return [{ok:false,step:'exceção no roteiro',got:String(e&&e.stack||e)}]})";
       const r = await cdp.send('Runtime.evaluate', { expression: code, returnByValue: true, awaitPromise: true }, Number(process.env.E2E_TIMEOUT_MS || 900000));
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       const checks = r.result.value || [];
       for (const c of checks) {
-        const showGot = !c.ok || c.step === 'métricas';
+        const showGot = !c.ok || c.step.indexOf('métricas') === 0;
         console.log(c.ok ? 'PASSOU' : 'FALHOU', '-', c.step, showGot ? '→ ' + JSON.stringify(c.got, null, c.ok ? 2 : 0) : '');
       }
       const failed = checks.filter((c) => !c.ok).length;

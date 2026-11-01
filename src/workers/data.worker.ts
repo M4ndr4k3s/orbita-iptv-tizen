@@ -5,7 +5,10 @@
 import { runImport, ImportError } from '../playlist/runImport';
 import {
   idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
+  channelIds, getMany, searchIds,
 } from '../storage/channelStore';
+import { listEntries, toggleFavorite, addHistory, deleteLibrary } from '../storage/libraryStore';
+import { searchKey, type SavedEntry } from '../playlist/model';
 import { idbStore, openDb } from '../storage/db';
 import type { Source } from '../playlist/source';
 import type { ToWorker, FromWorker, RpcName } from './protocol';
@@ -22,7 +25,11 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   },
   'sources.getAll': () => sources.getAll(),
   'sources.put': (s: Source) => sources.put(s),
-  'sources.delete': (id: string) => sources.delete(id),
+  // remover a fonte leva junto os favoritos e o histórico dela
+  'sources.delete': async (id: string) => {
+    await sources.delete(id);
+    await deleteLibrary(id);
+  },
   'gens.cleanup': (keep: string[], busy: string[]) => cleanupGenerations(new Set(keep), new Set(busy)),
   'groups.get': (gk: string) => getGroups(gk),
   'channels.page': (gk: string, group: string, offset: number, limit: number) =>
@@ -30,7 +37,21 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'channels.first': (gk: string) => firstOf(gk),
   'channels.neighbor': (gk: string, order: number, dir: number) => neighbor(gk, order | 0, dir < 0 ? -1 : 1),
   'channels.byNumber': (gk: string, num: number) => byNumber(gk, num | 0),
+  'channels.ids': (gk: string, group: string | null) => channelIds(gk, typeof group === 'string' ? group : null),
+  'channels.getMany': (ids: string[]) => getMany(Array.isArray(ids) ? ids.slice(0, 200).map(String) : []),
+  'channels.search': (gk: string, term: string) => searchIds(gk, searchKey(String(term).slice(0, 60))),
+  'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
+  'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),
+  'library.addHistory': (e: SavedEntry) => addHistory(checkEntry(e)),
 };
+
+/** Entrada vinda da interface: confere a forma antes de gravar. */
+function checkEntry(e: SavedEntry): SavedEntry {
+  if (!e || typeof e.sourceId !== 'string' || typeof e.key !== 'string' || !e.channel || typeof e.channel.name !== 'string') {
+    throw new Error('entrada inválida');
+  }
+  return { id: e.sourceId + '|' + e.key, sourceId: e.sourceId, key: e.key, at: Date.now(), channel: e.channel };
+}
 
 async function handleRpc(id: number, method: RpcName, args: unknown[]): Promise<void> {
   const fn = Object.prototype.hasOwnProperty.call(RPC, method) ? RPC[method] : null;

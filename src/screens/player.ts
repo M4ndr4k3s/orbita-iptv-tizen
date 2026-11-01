@@ -8,6 +8,7 @@ import type { RemoteKey } from '../navigation/keys';
 import { focus } from '../navigation/focus';
 import { button } from '../components/button';
 import { toast } from '../components/toast';
+import { icon } from '../components/icons';
 import { getEngine } from '../player/engineFactory';
 import { PlaybackSession, type SessionState } from '../player/session';
 import { streamUrl } from '../player/streamUrl';
@@ -15,6 +16,7 @@ import type { PlayerEngine } from '../player/engine';
 import type { Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { t } from '../services/i18n';
+import { wrapIndex, type ChannelList } from '../services/channelLists';
 
 declare const __DEV__: boolean;
 
@@ -29,6 +31,8 @@ export class PlayerScreen implements Screen {
   private current: Channel;
   /** canal mostrado no OSD durante a troca rápida (ainda não aberto) */
   private pending: Channel | null = null;
+  private pendingIndex = -1;
+  private historyDone = false;
   private zapTimer: ReturnType<typeof setTimeout> | null = null;
   private osdTimer: ReturnType<typeof setTimeout> | null = null;
   private digitTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,6 +44,7 @@ export class PlayerScreen implements Screen {
   private osdNum: HTMLElement;
   private osdName: HTMLElement;
   private osdGroup: HTMLElement;
+  private osdFav: SVGSVGElement;
   private osdLogo: HTMLImageElement;
   private status: HTMLElement;
   private numberBox: HTMLElement;
@@ -49,7 +54,18 @@ export class PlayerScreen implements Screen {
     else this.engine.restore();
   };
 
-  constructor(private ctx: AppContext, private source: Source, start: Channel) {
+  /**
+   * list/index: a lista que o CH± percorre (categoria, favoritos, busca...).
+   * onExit: avisa qual canal estava tocando ao sair (a lista de canais o destaca).
+   */
+  constructor(
+    private ctx: AppContext,
+    private source: Source,
+    start: Channel,
+    private list: ChannelList | null = null,
+    private index = 0,
+    private onExit?: (ch: Channel, index: number) => void,
+  ) {
     this.current = start;
     this.engine = getEngine();
     this.session = new PlaybackSession(this.engine, { live: true });
@@ -57,13 +73,14 @@ export class PlayerScreen implements Screen {
     this.osdNum = el('div', { class: 'osd-num' });
     this.osdName = el('div', { class: 'osd-name' });
     this.osdGroup = el('div', { class: 'osd-group' });
+    this.osdFav = icon('favorites', 'icon osd-fav hidden');
     this.osdLogo = el('img', { class: 'osd-logo', attrs: { alt: '' } });
     this.osdLogo.addEventListener('error', () => this.osdLogo.classList.add('hidden'));
     this.status = el('div', { class: 'osd-status' });
     this.osd = el('div', { class: 'osd' }, [
       el('div', { class: 'osd-top' }, [
         this.osdLogo,
-        el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName]), this.osdGroup]),
+        el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav]), this.osdGroup]),
       ]),
       el('div', { class: 'osd-bottom' }, [this.status, el('div', { class: 'osd-hint', text: t('player.hint') })]),
     ]);
@@ -83,6 +100,7 @@ export class PlayerScreen implements Screen {
   }
 
   unmount(): void {
+    if (this.onExit) this.onExit(this.current, this.index);
     this.session.stop();
     if (this.unsub) this.unsub();
     for (const tm of [this.zapTimer, this.osdTimer, this.digitTimer]) if (tm) clearTimeout(tm);
@@ -128,6 +146,9 @@ export class PlayerScreen implements Screen {
       case 'stop':
         this.ctx.back();
         return true;
+      case 'yellow':
+        void this.toggleFavorite();
+        return true;
       case 'left':
       case 'right':
         this.showOsd();
@@ -137,9 +158,18 @@ export class PlayerScreen implements Screen {
     }
   }
 
+  private async toggleFavorite(): Promise<void> {
+    const on = await this.ctx.library.toggleFavorite(this.source.id, this.current);
+    toast(on ? t('live.favAdded', { name: this.current.name }) : t('live.favRemoved', { name: this.current.name }));
+    this.paintChannel(this.current);
+    this.showOsd();
+  }
+
   private open(ch: Channel): void {
     this.current = ch;
     this.pending = null;
+    this.pendingIndex = -1;
+    this.historyDone = false;
     this.hideError();
     this.paintChannel(ch);
     this.showOsd();
@@ -154,18 +184,28 @@ export class PlayerScreen implements Screen {
 
   /** CH±: atualiza o OSD na hora e só abre o stream quando o usuário para de apertar. */
   private zap(dir: 1 | -1): void {
-    const gk = this.source.import && this.source.import.gk;
-    if (!gk) return;
     const seq = ++this.zapSeq;
-    const from = this.pending || this.current;
-    void this.ctx.data.call('channels.neighbor', gk, from.order, dir).then((next) => {
+    let lookup: Promise<Channel | null>;
+    if (this.list && this.list.size > 1) {
+      // percorre a lista de origem (categoria, favoritos, busca), com volta pelas pontas
+      this.pendingIndex = wrapIndex(this.pendingIndex >= 0 ? this.pendingIndex : this.index, dir, this.list.size);
+      lookup = this.list.load(this.pendingIndex, 1).then((l) => l[0] || null);
+    } else {
+      const gk = this.source.import && this.source.import.gk;
+      if (!gk) return;
+      const from = this.pending || this.current;
+      lookup = this.ctx.data.call('channels.neighbor', gk, from.order, dir);
+    }
+    void lookup.then((next) => {
       if (seq !== this.zapSeq || !next) return;
       this.pending = next;
       this.paintChannel(next);
       this.showOsd();
       if (this.zapTimer) clearTimeout(this.zapTimer);
       this.zapTimer = setTimeout(() => {
-        if (this.pending) this.open(this.pending);
+        if (!this.pending) return;
+        if (this.pendingIndex >= 0) this.index = this.pendingIndex;
+        this.open(this.pending);
       }, ZAP_DEBOUNCE_MS);
     });
   }
@@ -187,14 +227,21 @@ export class PlayerScreen implements Screen {
     const gk = this.source.import && this.source.import.gk;
     if (!gk || !n) return;
     void this.ctx.data.call('channels.byNumber', gk, n).then((ch) => {
-      if (ch) this.open(ch);
-      else toast(t('player.noChannel', { n }), 'error');
+      if (!ch) {
+        toast(t('player.noChannel', { n }), 'error');
+        return;
+      }
+      // número digitado vale para a lista inteira: sem lista, o CH± usa o vizinho no banco
+      this.list = null;
+      this.index = 0;
+      this.open(ch);
     });
   }
 
   private paintChannel(ch: Channel): void {
     this.osdNum.textContent = String(ch.num);
     this.osdName.textContent = ch.name;
+    this.osdFav.classList.toggle('hidden', !this.ctx.library.isFavorite(this.source.id, ch));
     this.osdGroup.textContent = ch.group;
     if (ch.logo) {
       this.osdLogo.classList.remove('hidden');
@@ -206,6 +253,11 @@ export class PlayerScreen implements Screen {
   }
 
   private render(s: SessionState): void {
+    // entra no histórico quando a imagem aparece (não ao só passar pelo canal)
+    if (s.status === 'playing' && !this.historyDone) {
+      this.historyDone = true;
+      void this.ctx.library.addHistory(this.source.id, this.current).catch(() => undefined);
+    }
     let text = '';
     if (s.status === 'connecting') text = t('player.connecting');
     else if (s.status === 'buffering') text = t('player.buffering', { p: s.percent });

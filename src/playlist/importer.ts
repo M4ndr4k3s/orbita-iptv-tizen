@@ -7,9 +7,17 @@ import {
 } from './model';
 import type { M3uEntry } from './m3uParser';
 
+/** Índice de busca dos canais ao vivo: ids e texto normalizado ("nome número"). */
+export interface SearchIndex {
+  gk: string;
+  ids: string[];
+  q: string[];
+}
+
 export interface ImportSink {
   putChannels(batch: Channel[]): Promise<void>;
   putGroups(groups: Group[]): Promise<void>;
+  putSearchIndex?(index: SearchIndex): Promise<void>;
 }
 
 export interface BuilderOptions {
@@ -46,6 +54,8 @@ export class ChannelBuilder {
   private batch: Channel[] = [];
   private groups = new Map<string, Group>();
   private seen = new Set<string>();
+  private searchIds: string[] = [];
+  private searchQ: string[] = [];
   private order = 0;
   private liveNum = 0;
   private stats = { live: 0, movies: 0, series: 0, duplicates: 0, skipped: 0 };
@@ -126,6 +136,7 @@ export class ChannelBuilder {
     await this.flush();
     const groups = Array.from(this.groups.values()).filter((g) => g.count > 0);
     await this.sink.putGroups(groups);
+    if (this.sink.putSearchIndex) await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ });
     return {
       gk: this.gk,
       importedAt: base.importedAt,
@@ -184,6 +195,10 @@ export class ChannelBuilder {
     if (c.xid != null) ch.xid = c.xid;
     if (c.ext) ch.ext = c.ext;
     if (c.archiveDays) ch.archiveDays = c.archiveDays;
+    if (ch.kind === 'live') {
+      this.searchIds.push(ch.id);
+      this.searchQ.push(ch.q + ' ' + ch.num);
+    }
     this.batch.push(ch);
     if (this.batch.length >= this.batchSize) await this.flush();
     if (this.opts.onProgress && this.order % 1000 === 0) this.opts.onProgress(this.order);

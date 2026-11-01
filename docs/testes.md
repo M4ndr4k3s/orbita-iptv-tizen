@@ -109,3 +109,31 @@ Medições na TV com a lista real (Xtream, canal 1080p H.264):
 Coberto: abrir em tela cheia (menu some), CH+/CH− (com volta ao início da lista), três trocas rápidas abrindo só o último canal, número pelo controle, Info, Play/Pause (estado `PAUSED` no AVPlay e sem reconexão indevida em 20 s pausado), Back parando o AVPlay, canal quebrado (reconexão → erro claro → "Próximo canal").
 
 Não testado: queda de rede no meio do canal (só o vigia de stream congelado, no teste unitário); app em segundo plano e de volta (suspend/restore), que exige a tecla Home física; troca de canal mais rápida que ~5 s, que depende do servidor e do buffer inicial do AVPlay (ajustes de buffer ficam para o marco 9).
+
+## Marco 6: TV ao vivo, favoritos, histórico e busca (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 76/76 (inclui rolagem da lista virtual, índice de busca gravado na importação, agendador de tarefas ociosas) |
+| `m6-live.js`, lista real (2.822 canais) | **TV** | 20/20 |
+| `m6-live.js`, mock com 88 mil canais | **TV** | 20/20 |
+| `m6-persist.js` (reiniciar app + reimportar lista) | **TV** | 7/7 |
+| `m6-idle-cleanup.js` (limpeza só com o usuário parado) | **TV** | 4/4 (apagou 84 s depois de parar, e não antes) |
+| `m5-player.js` (regressão) | **TV** | 18/18 |
+
+Medições na TV:
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Rolagem da lista (quadro médio, lista real) | ~1.150 ms | **17,9–20,9 ms** (p95 26–37 ms) |
+| Rolagem com 88 mil canais | — | **16,4–16,8 ms** (p95 17–19 ms) |
+| Custo do handler de cada seta | — | 2,2–2,9 ms |
+| Abrir "Todos os canais" com 88 mil | 13 s | ~0,3 s |
+| Primeira busca com 88 mil | 42 s | 0,3–0,6 s (seguintes: ~50 ms) |
+| Nós no DOM na tela (qualquer tamanho de lista) | — | ~124–136 |
+| Heap JS | — | 9,5–10,7 MB |
+
+Experimento que achou a causa da rolagem lenta (`scripts/e2e/perf-scroll.js`): o mesmo roteiro com o fundo de gradientes radiais deu 37–95 ms de quadro médio e 4,7–10,9 s no total; sem o fundo, ou com fundo sólido, 17–18 ms e 2,2 s. Pôr o fundo numa camada própria da GPU não resolveu (35 ms).
+
+Ainda não testado: guia rápido de programação no OSD, que depende do EPG (marco 7); controle físico; visual na tela da TV.
+Limitação conhecida: categoria ao vivo e categoria VOD com o mesmo nome compartilham o índice `gk_group`, então itens VOD podem aparecer nessa categoria ao vivo. É raro; a correção é incluir o tipo no índice.

@@ -23,3 +23,10 @@
 | 2026-11-01 | Inspector caiu (ECONNRESET) durante os testes longos | O app ficou preso na varredura do índice (item acima) | Resolvido pelas mudanças acima; o `tv.mjs` tem timeouts configuráveis |
 | (anterior) | `tizen install`: `[target]: null` | TV não conectada no SDB | `build.mjs --install` roda `sdb connect` antes |
 | 2026-11-01 | Roteiro do player: CH±, Info e Pausa sem efeito | `T.press` não conhecia `chUp`/`info`/`playPause` e mandava código 0 | Mapa de teclas completo no helper; tecla desconhecida agora gera erro no roteiro |
+| 2026-11-01 | Lista de canais rolava a ~1 quadro/s na TV | Fundo com gradientes radiais em tela cheia repintado a cada mudança por cima; logos trocados a cada seta | Fundo sólido (medido por variações de CSS); logos só carregam com a lista parada 300 ms |
+| 2026-11-01 | Teclado: Maiúsculas e voltar dos símbolos com o mesmo rótulo "abc"; atalhos viravam `HTTP://` | Rótulo da tecla de shift; caixa aplicada aos atalhos | Shift = "Aa"/"AA"; atalhos nunca mudam de caixa |
+| 2026-11-01 | Primeira busca levou 42 s com 88 mil canais | Índice de busca montado lendo canal por canal (cursor) | Índice gravado na importação num único registro (`search`, v7) |
+| 2026-11-01 | "Todos os canais" levava 13 s para abrir com 88 mil | `getAllKeys` no índice composto `[gk, kind]` | Ids vêm do registro de busca |
+| 2026-11-01 | Lista vazia logo depois de atualizar uma lista grande | Leituras esperavam o delete da geração antiga (~25 s) | Limpeza só depois de 60 s sem tecla (`IdleTasks`) |
+| 2026-11-01 | Número pelo controle demorava mais de 4 s com lista grande | Buscava os 88 mil ids antes de abrir o player | Abre na hora; o CH± usa o vizinho no banco |
+| 2026-11-01 | TV ao vivo abria numa categoria vazia | Restaurava a última categoria mesmo vazia | Categoria lembrada vazia cai em "Todos os canais" |

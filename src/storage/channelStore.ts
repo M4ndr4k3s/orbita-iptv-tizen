@@ -5,7 +5,7 @@
 // único delete por intervalo de chaves.
 
 import { openDb } from './db';
-import type { ImportSink } from '../playlist/importer';
+import type { ImportSink, SearchIndex } from '../playlist/importer';
 import { pad8, type Channel, type Group } from '../playlist/model';
 
 function txDone(tx: IDBTransaction): Promise<void> {
@@ -32,6 +32,12 @@ export function idbSink(): ImportSink {
       const tx = db.transaction('channels', 'readwrite');
       const st = tx.objectStore('channels');
       for (const c of batch) st.put(c);
+      await txDone(tx);
+    },
+    async putSearchIndex(index: SearchIndex) {
+      const db = await openDb();
+      const tx = db.transaction('search', 'readwrite');
+      tx.objectStore('search').put(index);
       await txDone(tx);
     },
     async putGroups(groups: Group[]) {
@@ -66,11 +72,13 @@ export async function markGeneration(gk: string, state: GenerationRecord['state'
  */
 export async function deleteGeneration(gk: string): Promise<void> {
   const db = await openDb();
-  const tx = db.transaction(['channels', 'groups', 'gens'], 'readwrite');
+  const tx = db.transaction(['channels', 'groups', 'gens', 'search'], 'readwrite');
   tx.objectStore('channels').delete(genRange(gk));
   tx.objectStore('groups').delete(genRange(gk));
   tx.objectStore('gens').delete(gk);
+  tx.objectStore('search').delete(gk);
   await txDone(tx);
+  if (searchCache && searchCache.gk === gk) searchCache = null;
 }
 
 /**
@@ -142,6 +150,76 @@ export async function byNumber(gk: string, num: number, kind = 'live'): Promise<
     };
     cur.onerror = () => reject(cur.error);
   });
+}
+
+/**
+ * Ids (na ordem da lista) dos itens de um grupo, ou de todos os ao vivo se
+ * group for null. Só as chaves: barato até para dezenas de milhares.
+ */
+export async function channelIds(gk: string, group: string | null, kind = 'live'): Promise<string[]> {
+  // "Todos os canais": os ids já estão no registro de busca (≈0,3 s para 88 mil na TV;
+  // getAllKeys no índice composto levou 13 s)
+  if (group == null && kind === 'live') return (await loadSearchIndex(gk)).ids.slice();
+  const db = await openDb();
+  const st = db.transaction('channels', 'readonly').objectStore('channels');
+  const keys =
+    group == null
+      ? await req(st.index('gk_kind').getAllKeys(IDBKeyRange.only([gk, kind])))
+      : await req(st.index('gk_group').getAllKeys(IDBKeyRange.only([gk, group])));
+  // o índice de grupo pode misturar tipos com o mesmo nome; o id já vem ordenado
+  return (keys as string[]).sort();
+}
+
+export async function getMany(ids: string[]): Promise<Array<Channel | null>> {
+  const db = await openDb();
+  const st = db.transaction('channels', 'readonly').objectStore('channels');
+  return Promise.all(ids.map((id) => req(st.get(id) as IDBRequest<Channel | undefined>).then((c) => c || null)));
+}
+
+// índice de busca em memória da última geração consultada (só ao vivo)
+let searchCache: SearchIndex | null = null;
+
+async function loadSearchIndex(gk: string): Promise<{ ids: string[]; q: string[] }> {
+  if (searchCache && searchCache.gk === gk) return searchCache;
+  const db = await openDb();
+  // caminho rápido: índice gravado na importação (um único registro)
+  const saved = await req(db.transaction('search', 'readonly').objectStore('search').get(gk) as IDBRequest<SearchIndex | undefined>);
+  if (saved && Array.isArray(saved.ids) && Array.isArray(saved.q)) {
+    searchCache = saved;
+    return saved;
+  }
+  // gerações importadas antes da v7: monta lendo canal por canal (lento, só uma vez)
+  const ids: string[] = [];
+  const q: string[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const cur = db.transaction('channels', 'readonly').objectStore('channels').index('gk_kind').openCursor(IDBKeyRange.only([gk, 'live']));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return resolve();
+      const v = c.value as Channel;
+      ids.push(v.id);
+      q.push(v.q + ' ' + v.num);
+      c.continue();
+    };
+    cur.onerror = () => reject(cur.error);
+  });
+  searchCache = { gk, ids, q };
+  return searchCache;
+}
+
+/** Busca por nome (sem acento/maiúsculas) ou número; devolve ids na ordem da lista. */
+export async function searchIds(gk: string, term: string, limit = 300): Promise<string[]> {
+  const words = term.split(' ').filter(Boolean);
+  if (!words.length) return [];
+  const idx = await loadSearchIndex(gk);
+  const out: string[] = [];
+  for (let i = 0; i < idx.q.length && out.length < limit; i++) {
+    const text = idx.q[i];
+    let ok = true;
+    for (const w of words) if (text.indexOf(w) < 0) { ok = false; break; }
+    if (ok) out.push(idx.ids[i]);
+  }
+  return out.sort();
 }
 
 /** Página de itens de um grupo, na ordem da lista. */

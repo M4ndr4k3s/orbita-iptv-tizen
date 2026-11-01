@@ -35,7 +35,14 @@ window.T = (() => {
     while (i < s.length) {
       const tok = SHORT.find((x) => s.startsWith(x, i)) || s[i];
       const label = tok === ' ' ? 'Espaço' : tok;
-      const key = [...document.querySelectorAll('.kb-key')].find((x) => x.textContent === label);
+      const find = () => [...document.querySelectorAll('.kb-key')].find((x) => x.textContent === label);
+      let key = find();
+      if (!key) {
+        // símbolo na outra página do teclado: alterna (#+= / abc) e procura de novo
+        const page = document.querySelector('.kb-key.kb-page');
+        if (page) page.click();
+        key = find();
+      }
       if (!key) throw new Error('tecla não encontrada: ' + tok);
       key.click();
       i += tok.length;

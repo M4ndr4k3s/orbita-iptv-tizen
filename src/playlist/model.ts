@@ -55,6 +55,42 @@ export interface ImportStats {
 
 export const FIELD_MAX = { name: 200, group: 120, url: 2048, tvgId: 120 };
 
+/**
+ * Identidade estável de um item entre importações (o id muda a cada geração):
+ * Xtream pelo stream_id, M3U pela URL.
+ */
+export function channelKey(c: Pick<Channel, 'kind' | 'xid' | 'url'>): string {
+  return c.xid != null ? 'x' + c.kind.charAt(0) + ':' + c.xid : 'u:' + (c.url || '');
+}
+
+/** Cópia do item guardada em favoritos/histórico: dá para tocar sem a geração original. */
+export type ChannelSnapshot = Omit<Channel, 'id' | 'gk' | 'order' | 'q'>;
+
+export function snapshotOf(c: Channel): ChannelSnapshot {
+  const s: ChannelSnapshot = { num: c.num, kind: c.kind, name: c.name, group: c.group };
+  if (c.logo) s.logo = c.logo;
+  if (c.tvgId) s.tvgId = c.tvgId;
+  if (c.url) s.url = c.url;
+  if (c.xid != null) s.xid = c.xid;
+  if (c.ext) s.ext = c.ext;
+  if (c.archiveDays) s.archiveDays = c.archiveDays;
+  return s;
+}
+
+/** Reconstrói um Channel tocável a partir do snapshot (sem posição na lista). */
+export function channelFromSnapshot(s: ChannelSnapshot): Channel {
+  return { ...s, id: '', gk: '', order: 0, q: searchKey(s.name) };
+}
+
+export interface SavedEntry {
+  /** sourceId + '|' + channelKey */
+  id: string;
+  sourceId: string;
+  key: string;
+  at: number;
+  channel: ChannelSnapshot;
+}
+
 const ACCENTS = /[̀-ͯ]/g;
 
 /** Normaliza para busca: minúsculo, sem acentos, espaços simples. */

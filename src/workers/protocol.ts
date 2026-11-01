@@ -1,6 +1,6 @@
 // Mensagens entre a interface e o worker de dados (dono do IndexedDB).
 
-import type { Channel, Group, ImportStats } from '../playlist/model';
+import type { Channel, Group, ImportStats, SavedEntry } from '../playlist/model';
 import type { ImportErrorCode, ImportProgress } from '../playlist/runImport';
 import type { Source } from '../playlist/source';
 
@@ -16,6 +16,13 @@ export interface RpcMethods {
   'channels.first': { args: [string]; result: Channel | null };
   'channels.neighbor': { args: [string, number, 1 | -1]; result: Channel | null };
   'channels.byNumber': { args: [string, number]; result: Channel | null };
+  /** ids de um grupo (ou todos os ao vivo com null), na ordem da lista */
+  'channels.ids': { args: [string, string | null]; result: string[] };
+  'channels.getMany': { args: [string[]]; result: Array<Channel | null> };
+  'channels.search': { args: [string, string]; result: string[] };
+  'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
+  'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
+  'library.addHistory': { args: [SavedEntry]; result: void };
 }
 export type RpcName = keyof RpcMethods;
 

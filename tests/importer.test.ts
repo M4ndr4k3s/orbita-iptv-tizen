@@ -66,6 +66,20 @@ describe('ChannelBuilder (M3U)', () => {
   });
 });
 
+describe('ChannelBuilder (índice de busca)', () => {
+  it('grava só os canais ao vivo, com nome normalizado e número', async () => {
+    let saved: any = null;
+    const sink = new MemSink() as MemSink & { putSearchIndex: (i: any) => Promise<void> };
+    sink.putSearchIndex = async (i) => { saved = i; };
+    const b = new ChannelBuilder('s:g', sink);
+    const p = new M3uParser();
+    const text = '#EXTM3U\n#EXTINF:-1 tvg-chno="5",Notícias HD\nhttp://s/live/1.ts\n#EXTINF:-1,Filme\nhttp://s/movie/u/p/2.mp4\n';
+    for (const e of [...p.push(text), ...p.end()]) await b.addM3u(e);
+    await b.finish({ importedAt: 0, bytes: 0 });
+    expect(saved).toEqual({ gk: 's:g', ids: ['s:g:00000001'], q: ['noticias hd 5'] });
+  });
+});
+
 describe('ChannelBuilder (Xtream)', () => {
   it('mapeia stream_id, categoria, EPG, catch-up e ignora ids inválidos/duplicados', async () => {
     const sink = new MemSink();

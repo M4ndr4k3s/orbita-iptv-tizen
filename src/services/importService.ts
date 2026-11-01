@@ -5,6 +5,7 @@ import type { Source } from '../playlist/source';
 import type { ImportStats } from '../playlist/model';
 import type { ImportErrorCode, ImportProgress } from '../playlist/runImport';
 import type { DataClient } from '../storage/dataClient';
+import type { IdleTasks } from './idleTasks';
 
 export type ImportOutcome =
   | { ok: true; stats: ImportStats & { truncated: boolean } }
@@ -22,7 +23,7 @@ export class ImportService {
   private running = new Map<string, Promise<ImportOutcome>>();
   private nextId = 1;
 
-  constructor(private sources: SourceService, private data: DataClient) {
+  constructor(private sources: SourceService, private data: DataClient, private idle: IdleTasks) {
     data.onImport((m) => {
       const job = this.jobs.get(m.jobId);
       if (!job) return;
@@ -63,8 +64,8 @@ export class ImportService {
       this.running.delete(source.id);
       if (outcome.ok) {
         await this.sources.setImport(source.id, { stats: outcome.stats });
-        // a geração anterior deixou de ser referenciada: a limpeza a remove no worker
-        void this.cleanup().catch(() => undefined);
+        // a geração anterior deixou de ser referenciada: some quando o usuário estiver parado
+        this.scheduleCleanup();
       } else if (outcome.code !== 'aborted') {
         await this.sources.setImport(source.id, { error: outcome.code });
       }
@@ -89,6 +90,11 @@ export class ImportService {
   isDue(s: Source, now = Date.now()): boolean {
     if (!s.import) return true;
     return s.refreshHours > 0 && now - s.import.importedAt > s.refreshHours * 3600 * 1000;
+  }
+
+  /** Agenda a limpeza para o próximo período sem uso (ver IdleTasks). */
+  scheduleCleanup(): void {
+    this.idle.schedule('cleanup', () => this.cleanup());
   }
 
   /** Remove gerações que nenhuma fonte usa (fonte removida, importação interrompida/substituída). */

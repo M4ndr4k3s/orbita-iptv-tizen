@@ -5,6 +5,8 @@ export interface Settings {
   activeSourceId: string | null;
   askSourceOnStart: boolean;
   language: string;
+  /** última categoria aberta em TV ao vivo */
+  lastLiveCat: string;
 }
 
 const KEY = 'orbita.settings.v1';
@@ -13,6 +15,7 @@ const DEFAULTS: Settings = {
   activeSourceId: null,
   askSourceOnStart: true,
   language: 'pt-BR',
+  lastLiveCat: '',
 };
 
 export interface SettingsBackend {

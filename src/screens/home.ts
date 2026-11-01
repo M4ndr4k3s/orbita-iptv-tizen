@@ -15,6 +15,7 @@ import { importLine } from '../services/format';
 import { importWithProgress } from './importFlow';
 import { PlayerScreen } from './player';
 import { toast } from '../components/toast';
+import { idList, snapshotList } from '../services/channelLists';
 import { t, type I18nKey } from '../services/i18n';
 
 const SHORTCUTS: Array<[SectionId, IconName, I18nKey]> = [
@@ -46,16 +47,25 @@ export class HomeScreen implements Screen {
     ctx.sources.onChange(() => this.renderHero());
   }
 
-  /** Abre o player no primeiro canal ao vivo da lista ativa (navegação completa no marco 6). */
+  /** Retoma o último canal assistido (CH± percorre os recentes) ou abre o primeiro da lista. */
   private async watch(): Promise<void> {
     const s = this.ctx.sources.active();
     if (!s || !s.import) return;
+    await this.ctx.library.ensureFavorites(s.id);
+    const recent = await this.ctx.library.list('history', s.id);
+    if (recent.length) {
+      const list = snapshotList(recent);
+      const [ch] = await list.load(0, 1);
+      this.ctx.push(new PlayerScreen(this.ctx, s, ch, list, 0));
+      return;
+    }
     const ch = await this.ctx.data.call('channels.first', s.import.gk);
     if (!ch) {
       toast(t('player.empty'), 'error');
       return;
     }
-    this.ctx.push(new PlayerScreen(this.ctx, s, ch));
+    const ids = await this.ctx.data.call('channels.ids', s.import.gk, null);
+    this.ctx.push(new PlayerScreen(this.ctx, s, ch, idList(this.ctx.data, ids), 0));
   }
 
   onBack(): boolean {

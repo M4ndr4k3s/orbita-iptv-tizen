@@ -115,8 +115,8 @@ export class ListsScreen implements Screen {
       if (ok === 'remove') {
         this.ctx.imports.cancel(s.id);
         await this.ctx.sources.remove(s.id);
-        // apaga os canais da lista removida
-        await this.ctx.imports.cleanup().catch(() => undefined);
+        // os canais da lista removida são apagados quando o usuário estiver parado
+        this.ctx.imports.scheduleCleanup();
         toast(t('lists.removed'));
       }
     }

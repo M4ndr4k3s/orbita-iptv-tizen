@@ -15,11 +15,14 @@ import { HomeScreen } from '../screens/home';
 import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
 import { ListsScreen } from '../screens/lists';
+import { LiveScreen } from '../screens/live';
 import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
 import { settings } from '../storage/settings';
 import { DataClient } from '../storage/dataClient';
 import { ensureDevSeed } from './devSeed';
+import { LibraryService } from '../services/library';
+import { IdleTasks } from '../services/idleTasks';
 import { MemoryStore, type Store } from '../storage/store';
 import type { Source } from '../playlist/source';
 import { t, type I18nKey } from '../services/i18n';
@@ -30,12 +33,9 @@ declare const __APP_VERSION__: string;
 
 // seções ainda não implementadas e o marco do plano em que entram
 const PENDING: Partial<Record<SectionId, [IconName, I18nKey, number]>> = {
-  live: ['live', 'nav.live', 6],
   guide: ['guide', 'nav.guide', 7],
   movies: ['movies', 'nav.movies', 8],
   series: ['series', 'nav.series', 8],
-  favorites: ['favorites', 'nav.favorites', 6],
-  history: ['history', 'nav.history', 6],
   search: ['search', 'nav.search', 11],
   settings: ['settings', 'nav.settings', 10],
 };
@@ -46,9 +46,12 @@ class App implements AppContext {
   private exiting = false;
 
   readonly imports: ImportService;
+  readonly library: LibraryService;
+  readonly idle = new IdleTasks();
 
   constructor(host: HTMLElement, private keys: KeyRegistration, readonly sources: SourceService, readonly data: DataClient) {
-    this.imports = new ImportService(sources, data);
+    this.imports = new ImportService(sources, data, this.idle);
+    this.library = new LibraryService(data);
     const screens = el('main', { class: 'screens' });
     this.sidebar = new Sidebar((id) => this.go(id));
     const shell = el('div', { class: 'shell' }, [this.sidebar.root, screens]);
@@ -80,6 +83,10 @@ class App implements AppContext {
     const back = () => this.back();
     if (id === 'about') return new AboutScreen(__APP_VERSION__, this.keys, back);
     if (id === 'lists') return new ListsScreen(this);
+    // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
+    if (id === 'live') return new LiveScreen(this, 'all');
+    if (id === 'favorites') return new LiveScreen(this, 'fav');
+    if (id === 'history') return new LiveScreen(this, 'recent');
     const p = PENDING[id] || (['about', 'nav.home', 0] as [IconName, I18nKey, number]);
     return new PendingScreen(t(p[1]), p[0], p[2], back);
   }
@@ -101,7 +108,9 @@ class App implements AppContext {
       if (!s.import && atBoot && !isOverlayOpen()) void importWithProgress(this.imports, s);
       else if (s.import) importInBackground(this.imports, s);
     };
-    void this.imports.cleanup().catch(() => undefined).then(() => check(true));
+    // limpeza de gerações órfãs: só com o usuário parado (ver IdleTasks)
+    this.imports.scheduleCleanup();
+    check(true);
     setInterval(() => check(false), 30 * 60 * 1000);
   }
 
@@ -117,6 +126,7 @@ class App implements AppContext {
   }
 
   handleKey(key: RemoteKey): void {
+    this.idle.touch();
     if (isOverlayOpen()) {
       const o = topOverlay()!;
       if (o.onKey && o.onKey(key)) return;

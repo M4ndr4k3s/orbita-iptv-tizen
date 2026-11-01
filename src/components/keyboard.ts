@@ -70,10 +70,14 @@ export function openKeyboard(opts: KeyboardOptions): Promise<string | null> {
       renderPreview();
     };
 
+    // atalhos (http://, .com...) nunca mudam de caixa; só letras soltas
+    const shifted = (k: string) => (upper && !symbols && k.length === 1 ? k.toUpperCase() : k);
+
     const keyLabel = (k: Key): string => {
-      if (typeof k === 'string') return upper && !symbols ? k.toUpperCase() : k;
+      if (typeof k === 'string') return shifted(k);
       switch (k.special) {
-        case 'shift': return upper ? 'ABC' : 'abc';
+        // "Aa": não pode repetir o rótulo "abc" da tecla que volta dos símbolos
+        case 'shift': return upper ? 'AA' : 'Aa';
         case 'page': return symbols ? 'abc' : '#+=';
         case 'space': return t('kb.space');
         // texto em vez de ⌫: o glifo pode não existir na fonte da TV
@@ -85,7 +89,7 @@ export function openKeyboard(opts: KeyboardOptions): Promise<string | null> {
     };
 
     const press = (k: Key) => {
-      if (typeof k === 'string') return insert(upper && !symbols ? k.toUpperCase() : k);
+      if (typeof k === 'string') return insert(shifted(k));
       switch (k.special) {
         case 'shift': upper = !upper; return build();
         case 'page': symbols = !symbols; return build();
