@@ -1,4 +1,6 @@
 /* ponto de entrada do CSS: o esbuild junta tudo em build/app.css */
 @import "./tokens.css";
 @import "./base.css";
-@import "./diagnostics.css";
+@import "./components.css";
+@import "./screens.css";
+@import "./about.css";

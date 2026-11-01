@@ -1,0 +1,141 @@
+/* Componentes. Chromium 76: nada de gap em flex, inset ou aspect-ratio. */
+
+.icon {
+  width: 36px;
+  height: 36px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+/* ── Botão ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  height: 72px;
+  padding: 0 var(--sp-4);
+  border-radius: 36px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: 2px solid transparent;
+  transition: transform var(--t-fast);
+}
+.btn + .btn { margin-left: var(--sp-3); }
+.btn .icon { width: 32px; height: 32px; margin-right: var(--sp-2); }
+.btn-primary { background: var(--grad-brand); color: #fff; }
+.btn.is-focused { transform: scale(1.06); box-shadow: var(--focus-ring); background-color: var(--c-surface-hi); }
+.btn-primary.is-focused { background: var(--grad-brand); }
+
+/* ── Menu lateral ── */
+.sidebar {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 128px;
+  padding: var(--safe-y) 0;
+  z-index: 10;
+  background: linear-gradient(90deg, rgba(8, 9, 27, 0.92), rgba(8, 9, 27, 0.75));
+  border-right: 1px solid var(--c-border);
+  overflow: hidden;
+}
+/* sem transição de largura: animar width refaz layout e pintura a cada quadro (medido: ~16 fps na TV) */
+.sidebar.expanded {
+  width: 380px;
+  background: #0c0e22;
+}
+.sb-brand { display: flex; align-items: center; height: 80px; padding-left: 32px; margin-bottom: var(--sp-6); }
+.sb-brand img { width: 64px; height: 64px; flex: none; }
+.sb-name { font-size: var(--fs-lg); font-weight: 700; }
+.sb-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 68px;
+  margin: 0 16px 6px;
+  padding-left: 30px;
+  border-radius: var(--r-md);
+  color: var(--c-text-2);
+  white-space: nowrap;
+}
+.sb-label { margin-left: var(--sp-3); opacity: 0; font-size: var(--fs-md); }
+.sidebar.expanded .sb-label { opacity: 1; }
+.sb-item.active { color: var(--c-cyan); }
+.sb-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 6px;
+  height: 40px;
+  border-radius: 0 6px 6px 0;
+  background: var(--grad-brand);
+}
+.sb-item.is-focused { background: var(--c-surface-hi); color: var(--c-text); box-shadow: inset 0 0 0 3px var(--c-cyan); }
+
+/* ── Trilho ── */
+.rail { margin-top: var(--sp-6); }
+.rail-title { font-size: var(--fs-lg); font-weight: 600; margin-bottom: var(--sp-3); }
+/* padding vertical para o anel de foco/escala não serem cortados */
+.rail-viewport { overflow: hidden; padding: 20px 0 32px; margin: -20px 0 -32px; }
+.rail-track { display: flex; transition: transform var(--t-med) ease-out; will-change: transform; }
+
+/* ── Tile de atalho ── */
+.tile {
+  flex: none;
+  width: 300px;
+  height: 180px;
+  margin-right: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-lg);
+  background: #1a1840;
+  border: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--t-fast);
+}
+.tile-icon { width: 48px; height: 48px; color: var(--c-cyan); }
+.tile-label { font-size: var(--fs-md); font-weight: 600; }
+.tile.is-focused { transform: scale(1.08); box-shadow: var(--focus-ring); border-color: transparent; }
+
+/* ── Diálogo ── */
+.dlg-layer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 100;
+  background: rgba(4, 5, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dlg-box {
+  min-width: 720px;
+  max-width: 1100px;
+  padding: var(--sp-6);
+  border-radius: var(--r-lg);
+  background: var(--c-bg-2);
+  border: 1px solid var(--c-border);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+}
+.dlg-title { font-size: var(--fs-xl); margin-bottom: var(--sp-3); }
+.dlg-body { color: var(--c-text-2); margin-bottom: var(--sp-4); line-height: 1.4; }
+.dlg-actions { display: flex; margin-top: var(--sp-4); }
+
+/* ── Toast ── */
+.toast-host { position: fixed; right: var(--safe-x); bottom: var(--safe-y); z-index: 200; }
+.toast {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--c-bg-2);
+  border-left: 6px solid var(--c-cyan);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity var(--t-med), transform var(--t-med);
+}
+.toast-error { border-left-color: var(--c-danger); }
+.toast.show { opacity: 1; transform: none; }

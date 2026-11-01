@@ -1,29 +1,32 @@
-// Tela de diagnóstico (marco 1): mostra o ambiente e as últimas teclas recebidas.
-// Continua disponível depois em Configurações > Informações.
+// Tela "Sobre": versão, ambiente de execução e últimas teclas recebidas
+// (útil para diagnosticar o controle remoto na TV).
 
 import { el, clear } from '../utils/dom';
 import { getPlatformInfo } from '../app/platform';
+import type { Screen } from '../app/screen';
 import type { KeyRegistration, RemoteKey } from '../navigation/keys';
+import { button } from '../components/button';
+import { t } from '../services/i18n';
 
-const MAX_LOG = 14;
+const MAX_LOG = 10;
 
-export class DiagnosticsScreen {
+export class AboutScreen implements Screen {
   readonly root: HTMLElement;
   private log: HTMLElement;
   private lines: string[] = [];
 
-  constructor(version: string, reg: KeyRegistration) {
+  constructor(version: string, reg: KeyRegistration, back: () => void) {
     const info = getPlatformInfo();
     const row = (k: string, v: string) =>
       el('div', { class: 'diag-row' }, [el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v })]);
 
     this.log = el('div', { class: 'diag-log' });
-    this.root = el('div', { class: 'diag' }, [
+    this.root = el('div', { class: 'screen about' }, [
       el('div', { class: 'diag-head' }, [
         el('img', { attrs: { src: 'logo.png', alt: '' } }),
         el('div', {}, [
-          el('div', { class: 'diag-title', text: 'Órbita' }),
-          el('div', { class: 'diag-sub', text: 'versão ' + version + ' · diagnóstico' }),
+          el('h1', { class: 'screen-title', text: t('about.title') }),
+          el('div', { class: 'diag-sub', text: t('about.version', { v: version }) }),
         ]),
       ]),
       el('div', { class: 'diag-cols' }, [
@@ -39,13 +42,16 @@ export class DiagnosticsScreen {
         ]),
         el('div', { class: 'diag-panel' }, [el('h2', { text: 'Últimas teclas' }), this.log]),
       ]),
+      el('div', { class: 'about-actions' }, [button(t('pending.back'), { icon: 'back', autofocus: true, onClick: back })]),
     ]);
     this.pushLine('aguardando teclas do controle…');
   }
 
-  onKey(key: RemoteKey | null, code: number): void {
-    const label = key ? key.action + (key.digit != null ? ' ' + key.digit : '') : 'não mapeada';
-    this.pushLine(new Date().toLocaleTimeString() + '  ' + label + '  (código ' + code + ')');
+  /** Só registra; não consome a tecla. */
+  onKey(key: RemoteKey): boolean {
+    const label = key.action + (key.digit != null ? ' ' + key.digit : '');
+    this.pushLine(new Date().toLocaleTimeString() + '  ' + label + '  (código ' + key.code + ')');
+    return false;
   }
 
   private pushLine(text: string): void {

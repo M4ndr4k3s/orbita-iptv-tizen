@@ -37,7 +37,8 @@
   --r-md: 16px;
   --r-lg: 24px;
 
-  --focus-ring: 0 0 0 4px var(--c-cyan), 0 12px 36px rgba(61, 214, 245, 0.35);
+  /* sem desfoque: sombra borrada custa caro para pintar na GPU da TV */
+  --focus-ring: 0 0 0 4px var(--c-cyan);
   --t-fast: 120ms;
   --t-med: 200ms;
 }

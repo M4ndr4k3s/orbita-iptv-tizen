@@ -1,0 +1,45 @@
+/* Shell e telas */
+.shell { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.screens { position: absolute; top: 0; right: 0; bottom: 0; left: 128px; }
+.screen {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  padding: var(--safe-y) var(--safe-x) var(--safe-y) var(--sp-8);
+  overflow: hidden;
+}
+.screen-title { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.5px; }
+
+/* ── Início ── */
+.hero {
+  margin-top: var(--sp-6);
+  padding: var(--sp-8) var(--sp-6);
+  border-radius: var(--r-lg);
+  background: radial-gradient(800px 400px at 100% 0%, rgba(124, 92, 255, 0.35), transparent 70%),
+    radial-gradient(600px 300px at 0% 100%, rgba(61, 214, 245, 0.18), transparent 70%),
+    var(--c-bg-2);
+  border: 1px solid var(--c-border);
+}
+.hero-title { font-size: var(--fs-xxl); font-weight: 700; letter-spacing: -1px; }
+.hero-text { max-width: 1000px; margin-top: var(--sp-2); color: var(--c-text-2); font-size: var(--fs-md); line-height: 1.45; }
+.hero-actions { display: flex; margin-top: var(--sp-6); }
+
+/* ── Em desenvolvimento ── */
+.pending { display: flex; align-items: center; justify-content: center; }
+.pending-box { text-align: center; max-width: 900px; }
+.pending-icon { width: 120px; height: 120px; color: var(--c-violet); margin-bottom: var(--sp-4); }
+.pending-tag {
+  display: inline-block;
+  margin: var(--sp-3) 0;
+  padding: 6px var(--sp-2);
+  border-radius: 8px;
+  background: rgba(124, 92, 255, 0.18);
+  color: #b7a8ff;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+.pending-text { color: var(--c-text-2); margin-bottom: var(--sp-6); line-height: 1.45; }
+
+/* ── Sobre ── */
+.about { display: flex; flex-direction: column; }
+.about-actions { margin-top: var(--sp-4); }

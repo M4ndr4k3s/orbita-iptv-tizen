@@ -1,23 +1,10 @@
-.diag {
-  position: absolute;
-  top: var(--safe-y); right: var(--safe-x); bottom: var(--safe-y); left: var(--safe-x);
-  display: flex;
-  flex-direction: column;
-}
-
 .diag-head {
   display: flex;
   align-items: center;
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-4);
 }
 
 .diag-head img { width: 96px; height: 96px; margin-right: var(--sp-3); }
-
-.diag-title {
-  font-size: var(--fs-xxl);
-  font-weight: 700;
-  letter-spacing: -1px;
-}
 
 .diag-sub { color: var(--c-text-2); font-size: var(--fs-sm); }
 
