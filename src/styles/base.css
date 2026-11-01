@@ -1,0 +1,32 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  /* transparente por baixo: o vídeo do AVPlay é desenhado atrás do HTML */
+  background: transparent;
+  color: var(--c-text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* fundo da interface fica numa camada própria para poder sumir quando o vídeo está em tela cheia */
+#backdrop {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  background: radial-gradient(1200px 700px at 80% -10%, rgba(124, 92, 255, 0.22), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(61, 214, 245, 0.12), transparent 60%),
+    var(--c-bg);
+  z-index: 0;
+}
+
+#app {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 1;
+}
+
+.hidden { display: none !important; }

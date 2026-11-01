@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <!-- scripts só locais e sem eval; mídia/imagens/requisições vão para servidores escolhidos pelo usuário -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https:; worker-src 'self' blob:; object-src 'self'">
+  <title>Órbita</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+  <div id="backdrop"></div>
+  <div id="app"></div>
+  <script src="app.js"></script>
+</body>
+</html>
