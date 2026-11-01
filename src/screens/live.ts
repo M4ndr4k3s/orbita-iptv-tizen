@@ -94,6 +94,17 @@ export class LiveScreen implements Screen {
     }
     this.build();
     this.unsub.push(this.ctx.library.onChange(() => this.onLibraryChange()));
+    // guia terminou de baixar com a tela aberta: mostra sem precisar mexer na seleção
+    const epgState = (x: Source | undefined) => (x ? (x.epg ? x.epg.ek : '') + '|' + (x.epgError || '') : '');
+    let lastEpg = epgState(this.source);
+    this.unsub.push(
+      this.ctx.sources.onChange(() => {
+        const now = epgState(this.ctx.sources.get(this.source!.id));
+        if (now === lastEpg) return;
+        lastEpg = now;
+        if (!this.scrolling && this.chans) this.loadEpg(this.chans.item());
+      }),
+    );
     void this.loadCategories();
   }
 
@@ -402,7 +413,8 @@ export class LiveScreen implements Screen {
 
   private loadEpg(ch: Channel | null): void {
     const seq = ++this.epgSeq;
-    const src = this.source!;
+    // versão atual da fonte: o guia pode ter terminado de baixar depois que a tela abriu
+    const src = this.ctx.sources.get(this.source!.id) || this.source!;
     clear(this.epgBox);
     if (!ch) return;
     if (!src.epg) {

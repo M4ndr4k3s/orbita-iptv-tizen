@@ -28,6 +28,8 @@ export interface Channel {
   ext?: string;
   /** dias de arquivo (catch-up), se o servidor informar */
   archiveDays?: number;
+  /** nota 0–10 (filmes/séries do Xtream) */
+  rating?: number;
 }
 
 export interface Group {
@@ -53,6 +55,8 @@ export interface ImportStats {
   skipped: number;
   /** guia XMLTV indicado pela própria lista M3U (cabeçalho url-tvg) */
   tvgUrl?: string;
+  /** Xtream: catálogos VOD que não puderam ser baixados */
+  vodFailed?: Array<'movie' | 'series'>;
 }
 
 export const FIELD_MAX = { name: 200, group: 120, url: 2048, tvgId: 120 };

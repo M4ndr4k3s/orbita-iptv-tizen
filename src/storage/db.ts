@@ -48,6 +48,13 @@ const MIGRATIONS: Array<(db: IDBDatabase, tx: IDBTransaction) => void> = [
     db.createObjectStore('epg', { keyPath: 'id' });
     db.createObjectStore('epgmeta', { keyPath: 'id' });
   },
+  // v9: categoria por tipo. Em [gk, group] uma categoria de filmes com o mesmo nome
+  // de uma ao vivo misturava os dois; [gk, kind, group] separa (e substitui o antigo).
+  (_db, tx) => {
+    const ch = tx.objectStore('channels');
+    ch.deleteIndex('gk_group');
+    ch.createIndex('gk_kind_group', ['gk', 'kind', 'group']);
+  },
 ];
 
 let dbPromise: Promise<IDBDatabase> | null = null;

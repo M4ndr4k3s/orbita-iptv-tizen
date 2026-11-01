@@ -41,6 +41,8 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'channels.byNumber': (gk: string, num: number) => byNumber(gk, num | 0),
   'channels.ids': (gk: string, group: string | null) => channelIds(gk, typeof group === 'string' ? group : null),
   'channels.getMany': (ids: string[]) => getMany(Array.isArray(ids) ? ids.slice(0, 200).map(String) : []),
+  'vod.ids': (gk: string, kind: string, group: string | null) =>
+    channelIds(String(gk), typeof group === 'string' ? group : null, kind === 'series' ? 'series' : 'movie'),
   'channels.search': (gk: string, term: string) => searchIds(gk, searchKey(String(term).slice(0, 60))),
   'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
   'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),

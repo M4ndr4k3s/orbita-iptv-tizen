@@ -24,8 +24,12 @@ export interface VideoRect {
 
 export interface PlayerEngine {
   readonly name: string;
-  /** começa a tocar a URL; eventos chegam pelo listener */
-  open(url: string): void;
+  /** começa a tocar a URL (VOD: a partir de startMs); eventos chegam pelo listener */
+  open(url: string, startMs?: number): void;
+  /** VOD: pula para a posição (ms) */
+  seek(ms: number): void;
+  /** VOD: duração em ms (0 se desconhecida / ao vivo) */
+  duration(): number;
   stop(): void;
   pause(): void;
   resume(): void;

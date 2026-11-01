@@ -35,6 +35,8 @@ export interface AVPlay {
   setStreamingProperty?(name: string, value: string): void;
   setTimeoutForBuffering?(seconds: number): void;
   getCurrentStreamInfo(): AVPlayStreamInfo[];
+  seekTo(ms: number, ok?: () => void, err?: () => void): void;
+  getDuration(): number;
   getTotalTrackInfo?(): AVPlayStreamInfo[];
   setSelectTrack?(type: string, index: number): void;
   suspend(): void;
@@ -65,7 +67,9 @@ export class AvplayEngine implements PlayerEngine {
   private rect: VideoRect | null = null;
   private preparing = false;
   private prepSeq = 0;
-  private next: { url: string; seq: number } | 'stop' | null = null;
+  private next: { url: string; seq: number; startMs: number } | 'stop' | null = null;
+  private seeking = false;
+  private seekTarget = -1;
   private prepTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private av: AVPlay) {
@@ -88,13 +92,51 @@ export class AvplayEngine implements PlayerEngine {
    * a mini janela. Então as operações são serializadas: durante o preparo, só a
    * última pedida fica guardada e roda quando o preparo responde.
    */
-  open(url: string): void {
+  open(url: string, startMs = 0): void {
     this.openSeq++;
+    this.seeking = false;
+    this.seekTarget = -1;
     if (this.preparing) {
-      this.next = { url, seq: this.openSeq };
+      this.next = { url, seq: this.openSeq, startMs };
       return;
     }
-    this.doOpen(url, this.openSeq);
+    this.doOpen(url, this.openSeq, startMs);
+  }
+
+  /** seekTo também é assíncrono: um por vez, o último pedido vence. */
+  seek(ms: number): void {
+    const target = Math.max(0, Math.floor(ms));
+    if (this.preparing || this.seeking) {
+      this.seekTarget = target;
+      return;
+    }
+    const st = this.state();
+    if (st !== 'PLAYING' && st !== 'PAUSED' && st !== 'READY') return;
+    this.seeking = true;
+    const seq = this.openSeq;
+    const done = () => {
+      if (seq !== this.openSeq) return;
+      this.seeking = false;
+      if (this.seekTarget >= 0) {
+        const t = this.seekTarget;
+        this.seekTarget = -1;
+        this.seek(t);
+      }
+    };
+    try {
+      this.av.seekTo(target, done, done);
+    } catch {
+      done();
+    }
+  }
+
+  duration(): number {
+    try {
+      const d = this.av.getDuration();
+      return d > 0 ? d : 0;
+    } catch {
+      return 0;
+    }
   }
 
   stop(): void {
@@ -106,7 +148,7 @@ export class AvplayEngine implements PlayerEngine {
     this.doStop();
   }
 
-  private doOpen(url: string, seq: number): void {
+  private doOpen(url: string, seq: number, startMs = 0): void {
     this.doStop();
     this.started = false;
     // eventos de um stream antigo (troca rápida de canal) são descartados
@@ -157,11 +199,22 @@ export class AvplayEngine implements PlayerEngine {
           if (prepared() || seq !== this.openSeq) return;
           // o retângulo pode ter mudado durante o preparo (mini janela ↔ tela cheia)
           this.applyRect();
-          try {
-            this.av.play();
-          } catch (e) {
-            emit({ type: 'error', code: errName(e) });
-          }
+          const play = () => {
+            if (seq !== this.openSeq) return;
+            try {
+              this.av.play();
+            } catch (e) {
+              emit({ type: 'error', code: errName(e) });
+            }
+          };
+          // retomar de onde parou: posiciona antes de tocar (se falhar, toca do início)
+          if (startMs > 0) {
+            try {
+              this.av.seekTo(startMs, play, play);
+            } catch {
+              play();
+            }
+          } else play();
         },
         (e) => {
           if (prepared()) return;
@@ -180,7 +233,7 @@ export class AvplayEngine implements PlayerEngine {
     this.next = null;
     if (!n) return false;
     if (n === 'stop') this.doStop();
-    else if (n.seq === this.openSeq) this.doOpen(n.url, n.seq);
+    else if (n.seq === this.openSeq) this.doOpen(n.url, n.seq, n.startMs);
     else this.doStop();
     return true;
   }

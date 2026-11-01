@@ -159,3 +159,25 @@ Medições na TV:
 | Heap JS | ~10 MB |
 
 Não testado: guia muito grande (centenas de MB); visual na tela física; controle físico. Na lista real, só 297 dos canais têm guia — os 40 primeiros de "Todos os canais" não tinham programação no XMLTV do provedor.
+
+## Marco 8: filmes e séries (Xtream) (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 108/108 (detalhes de filme/série com dados estranhos, retomada, importação VOD com falha parcial, URL de filme/episódio) |
+| `m8-vod.js`, conta Xtream do mock (60 filmes, 12 séries) | **TV** | 22/22 |
+| Regressões `m5-player`, `m6-live`, `m7-epg` | **TV** | 18/18, 20/20, 17/17 |
+| Lista real atualizada com VOD | **TV** | 2.822 canais, 36.867 filmes e 9.993 séries em ~100 s; quadro p50 17 ms / p95 27–30 ms durante a importação |
+| Filme e episódio reais | **TV** | tocaram (8,2 s e 5,6 s até a imagem; duração lida do stream) |
+
+Medições na TV (lista real):
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Abrir Filmes → "Todos" (36.867) | ~11,5 s | **0,6 s** |
+| Trocar de categoria de filmes (480–610 itens) | — | ~0,5 s (inclui 250 ms de espera da seleção) |
+| Filme do mock até tocar / episódio | — | 2,7 s / 1,5 s |
+| Heap JS | — | ~10 MB |
+
+Não testado: legendas e faixas de áudio (marco 9); filmes de listas M3U (tocam pelo mesmo player, sem detalhes); retomada depois de reiniciar o app (usa o mesmo localStorage dos ajustes, testado só na unidade).
+Limitação: na primeira abertura depois de atualizar o app, a migração do banco (novo índice por tipo+categoria) deixa a tela vazia por alguns segundos.

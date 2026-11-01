@@ -34,3 +34,7 @@
 | 2026-11-01 | CH± não saía do canal quando "Assistir TV" retomava recentes com 1 só canal | Cópia do canal nos recentes não tem posição (order 0); o vizinho da posição 0 era o próprio canal 1 | Sem posição, acha o canal na lista pelo número antes de pedir o vizinho |
 | 2026-11-01 | Guia abria em "Favoritos" vazio | Categoria inicial "guide" não existe; caía na primeira da lista | Guia usa a mesma categoria lembrada da TV ao vivo |
 | 2026-11-01 | Roteiro de teste: lista do mock não cadastrava (`tecla não encontrada: C`) | Git Bash converte `/lista-epg.m3u` em `C:/Program Files/Git/...` | `MSYS_NO_PATHCONV=1` ao passar caminhos em variáveis E2E_ |
+| 2026-11-01 | Filmes → "Todos" levava ~11,5 s com 37 mil filmes | `getAllKeys` no índice `[gk, kind]` (mesmo caso dos canais) | Ids de filmes e séries gravados no registro de busca na importação |
+| 2026-11-01 | Categoria de filmes com o mesmo nome de uma ao vivo misturava itens | Índice `[gk, group]` sem o tipo | Índice `[gk, kind, group]` (v9) substitui o antigo |
+| 2026-11-01 | Guia baixado com a TV ao vivo aberta não aparecia | A tela usava a cópia da fonte de quando abriu | Lê a fonte atual e escuta mudanças da fonte |
+| 2026-11-01 | Roteiro começou antes do app abrir depois de atualizar | Migração do banco na primeira abertura | Roteiros esperam a barra lateral; limitação registrada |

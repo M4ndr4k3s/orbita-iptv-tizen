@@ -16,6 +16,7 @@ import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
 import { ListsScreen } from '../screens/lists';
 import { LiveScreen } from '../screens/live';
+import { VodScreen } from '../screens/vod';
 import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
 import { settings } from '../storage/settings';
@@ -87,6 +88,8 @@ class App implements AppContext {
     // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
     if (id === 'live') return new LiveScreen(this, 'all');
     if (id === 'guide') return new LiveScreen(this, 'guide');
+    if (id === 'movies') return new VodScreen(this, 'movie');
+    if (id === 'series') return new VodScreen(this, 'series');
     if (id === 'favorites') return new LiveScreen(this, 'fav');
     if (id === 'history') return new LiveScreen(this, 'recent');
     const p = PENDING[id] || (['about', 'nav.home', 0] as [IconName, I18nKey, number]);

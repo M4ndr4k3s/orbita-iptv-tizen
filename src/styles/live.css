@@ -107,3 +107,36 @@
 .epg-item.on .epg-title { color: var(--c-cyan); font-weight: 600; }
 .epg-item.on .epg-time { color: var(--c-cyan); }
 .lp-epg.guide + .lp-hint { margin-top: var(--sp-2); }
+
+/* ── Filmes e Séries ── */
+.vr-poster { width: 52px; height: 76px; flex: none; object-fit: cover; border-radius: 6px; margin-right: var(--sp-2); }
+.vr-rating { margin-left: var(--sp-2); font-size: var(--fs-xs); color: var(--c-text-3); flex: none; }
+.vl.is-focused .vl-row.sel .vr-rating { color: #0d3a48; }
+.vl-vod .cr-num { width: auto; min-width: 84px; }
+.vod-panel { display: flex; flex-direction: column; }
+.vp-poster-box {
+  height: 380px;
+  border-radius: var(--r-lg);
+  background: var(--c-bg-2);
+  border: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: var(--sp-3);
+}
+.vp-poster { max-width: 100%; max-height: 100%; object-fit: contain; }
+.vp-meta { color: var(--c-cyan); font-size: var(--fs-sm); margin-top: var(--sp-1); }
+.vp-resume { color: var(--c-ok); font-size: var(--fs-sm); margin-top: var(--sp-1); }
+/* sinopse longa: corta em 6 linhas (sem rolagem dentro do painel) */
+.vp-plot {
+  margin-top: var(--sp-2);
+  color: var(--c-text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.series .pending-text { margin-top: var(--sp-4); }

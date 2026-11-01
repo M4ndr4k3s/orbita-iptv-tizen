@@ -17,6 +17,8 @@ export interface SessionState {
   error?: string;
   /** ms do open até o primeiro "playing" (só na primeira vez de cada stream) */
   firstFrameMs?: number;
+  /** VOD: posição atual em ms */
+  positionMs: number;
 }
 
 export interface SessionOptions {
@@ -58,7 +60,7 @@ export class PlaybackSession {
       setTimer: opts.setTimer || ((fn, ms) => setTimeout(fn, ms)),
       clearTimer: opts.clearTimer || ((h) => clearTimeout(h as ReturnType<typeof setTimeout>)),
     };
-    this.st = { status: 'idle', attempt: 0, maxAttempts: this.o.maxAttempts, percent: 0 };
+    this.st = { status: 'idle', attempt: 0, maxAttempts: this.o.maxAttempts, percent: 0, positionMs: 0 };
     engine.setListener((e) => this.onEngine(e));
   }
 
@@ -83,10 +85,22 @@ export class PlaybackSession {
     };
   }
 
-  play(url: string): void {
+  /** startMs: VOD, retomar desta posição. */
+  play(url: string, startMs = 0): void {
     this.url = url;
     this.hadFirstFrame = false;
+    this.st = { ...this.st, positionMs: this.o.live ? 0 : Math.max(0, startMs) };
     this.attemptOpen(1);
+  }
+
+  /** VOD: pula para a posição; o vigia de travamento recomeça a contar. */
+  seek(ms: number): void {
+    if (this.o.live || !this.url) return;
+    const st = this.st.status;
+    if (st !== 'playing' && st !== 'paused' && st !== 'buffering') return;
+    this.engine.seek(ms);
+    this.set({ positionMs: Math.max(0, ms) });
+    if (st !== 'paused') this.armStall();
   }
 
   /** Nova tentativa manual após falha ("Tentar novamente"). */
@@ -119,7 +133,8 @@ export class PlaybackSession {
     this.openedAt = this.o.now();
     this.set({ status: 'connecting', attempt, percent: 0, error: undefined });
     this.startTimer = this.o.setTimer(() => this.fail('timeout'), this.o.startTimeoutMs);
-    this.engine.open(this.url);
+    // VOD que caiu no meio volta de onde estava, não do começo
+    this.engine.open(this.url, this.o.live ? 0 : this.st.positionMs);
   }
 
   private onEngine(e: EngineEvent): void {
@@ -144,6 +159,7 @@ export class PlaybackSession {
       case 'time':
         if (this.st.status === 'playing' || this.st.status === 'buffering') {
           if (this.st.status === 'buffering') this.set({ status: 'playing' });
+          if (!this.o.live) this.st = { ...this.st, positionMs: e.ms };
           this.armStall();
         }
         break;

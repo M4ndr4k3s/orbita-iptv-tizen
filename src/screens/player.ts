@@ -283,11 +283,12 @@ export class PlayerScreen implements Screen {
 
   private paintEpg(ch: Channel): void {
     const seq = ++this.epgSeq;
-    if (!this.source.epg) {
+    const src = this.ctx.sources.get(this.source.id) || this.source;
+    if (!src.epg) {
       clear(this.osdEpg);
       return;
     }
-    void scheduleFor(this.ctx.data, this.source, ch, 2)
+    void scheduleFor(this.ctx.data, src, ch, 2)
       .then((list) => {
         if (seq === this.epgSeq) renderNowNext(this.osdEpg, list);
       })

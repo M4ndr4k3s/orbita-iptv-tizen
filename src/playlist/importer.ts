@@ -12,6 +12,9 @@ export interface SearchIndex {
   gk: string;
   ids: string[];
   q: string[];
+  /** ids de filmes e séries na ordem da lista ("Todos" do VOD sem varrer índice) */
+  movies?: string[];
+  series?: string[];
 }
 
 export interface ImportSink {
@@ -43,6 +46,7 @@ export interface XtreamStream {
   tv_archive?: number | string;
   tv_archive_duration?: number | string;
   container_extension?: string;
+  rating?: number | string;
 }
 
 const toInt = (v: unknown): number | null => {
@@ -50,12 +54,20 @@ const toInt = (v: unknown): number | null => {
   return isFinite(n) && Math.floor(n) === n ? n : null;
 };
 
+/** Nota 0–10 com uma casa; servidores mandam número, string ou "" */
+function parseRating(v: unknown): number | undefined {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
+  return isFinite(n) && n > 0 && n <= 10 ? Math.round(n * 10) / 10 : undefined;
+}
+
 export class ChannelBuilder {
   private batch: Channel[] = [];
   private groups = new Map<string, Group>();
   private seen = new Set<string>();
   private searchIds: string[] = [];
   private searchQ: string[] = [];
+  private movieIds: string[] = [];
+  private seriesIds: string[] = [];
   private order = 0;
   private liveNum = 0;
   private stats = { live: 0, movies: 0, series: 0, duplicates: 0, skipped: 0 };
@@ -126,6 +138,7 @@ export class ChannelBuilder {
       xid: id,
       ext,
       archiveDays: archive && archive > 0 ? archive : undefined,
+      rating: parseRating(s.rating),
       num: kind === 'live' && num && num > 0 && num < 100000 ? num : 0,
       dedupeKey: key,
     });
@@ -136,7 +149,9 @@ export class ChannelBuilder {
     await this.flush();
     const groups = Array.from(this.groups.values()).filter((g) => g.count > 0);
     await this.sink.putGroups(groups);
-    if (this.sink.putSearchIndex) await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ });
+    if (this.sink.putSearchIndex) {
+      await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ, movies: this.movieIds, series: this.seriesIds });
+    }
     return {
       gk: this.gk,
       importedAt: base.importedAt,
@@ -195,10 +210,12 @@ export class ChannelBuilder {
     if (c.xid != null) ch.xid = c.xid;
     if (c.ext) ch.ext = c.ext;
     if (c.archiveDays) ch.archiveDays = c.archiveDays;
+    if (c.rating) ch.rating = c.rating;
     if (ch.kind === 'live') {
       this.searchIds.push(ch.id);
       this.searchQ.push(ch.q + ' ' + ch.num);
-    }
+    } else if (ch.kind === 'movie') this.movieIds.push(ch.id);
+    else this.seriesIds.push(ch.id);
     this.batch.push(ch);
     if (this.batch.length >= this.batchSize) await this.flush();
     if (this.opts.onProgress && this.order % 1000 === 0) this.opts.onProgress(this.order);

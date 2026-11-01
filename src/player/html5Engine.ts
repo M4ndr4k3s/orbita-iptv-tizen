@@ -36,10 +36,27 @@ export class Html5Engine implements PlayerEngine {
     this.listener = fn;
   }
 
-  open(url: string): void {
+  open(url: string, startMs = 0): void {
     this.started = false;
     this.video.src = url;
+    if (startMs > 0) {
+      const v = this.video;
+      const go = () => {
+        v.removeEventListener('loadedmetadata', go);
+        v.currentTime = startMs / 1000;
+      };
+      v.addEventListener('loadedmetadata', go);
+    }
     this.video.play().catch(() => undefined);
+  }
+
+  seek(ms: number): void {
+    if (this.video.getAttribute('src')) this.video.currentTime = Math.max(0, ms / 1000);
+  }
+
+  duration(): number {
+    const d = this.video.duration;
+    return isFinite(d) && d > 0 ? Math.round(d * 1000) : 0;
   }
 
   stop(): void {

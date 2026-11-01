@@ -22,6 +22,8 @@ export interface RpcMethods {
   'channels.ids': { args: [string, string | null]; result: string[] };
   'channels.getMany': { args: [string[]]; result: Array<Channel | null> };
   'channels.search': { args: [string, string]; result: string[] };
+  /** ids de filmes ou séries de uma categoria (ou de todas com null) */
+  'vod.ids': { args: [string, 'movie' | 'series', string | null]; result: string[] };
   'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
   'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
   'library.addHistory': { args: [SavedEntry]; result: void };

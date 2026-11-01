@@ -11,6 +11,7 @@
 //   /epg.xml?n=N  /epg.xml.gz?n=N   guia XMLTV sintético (programas de 30 min, -2 h a +24 h)
 //   /xmltv.php          guia da conta Xtream (mesmas credenciais)
 //   /lista-epg.m3u      lista pequena com url-tvg no cabeçalho apontando para /epg.xml.gz
+//   VOD Xtream: get_vod_categories/streams/info, get_series_categories/series/info; /movie|series/u/p/id.ext → HLS público
 //   /player_api.php     login + get_live_categories + get_live_streams (n= via usuário "teste100k" = 100 mil)
 import { createServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
@@ -160,7 +161,48 @@ ${STREAMS[i % STREAMS.length]}?ch=${i}
       }) + (last ? '' : ',');
       return streamBig(res, n, item, '[', ']');
     }
+    // VOD de teste: 3 categorias, 60 filmes, 12 séries com 2 temporadas de 4 episódios
+    const VOD = 60;
+    const SERIES = 12;
+    if (action === 'get_vod_categories' || action === 'get_series_categories') {
+      const pre = action === 'get_vod_categories' ? 'Filmes de Teste ' : 'Séries de Teste ';
+      return send(200, 'application/json', JSON.stringify([1, 2, 3].map((i) => ({ category_id: String(100 + i), category_name: pre + i }))));
+    }
+    if (action === 'get_vod_streams') {
+      return send(200, 'application/json', JSON.stringify(Array.from({ length: VOD }, (_, k) => ({
+        num: k + 1, name: 'Filme de Teste ' + (k + 1), stream_type: 'movie', stream_id: 5000 + k, stream_icon: '', rating: String((k % 9) + 1) + '.5',
+        category_id: String(101 + (k % 3)), container_extension: 'm3u8',
+      }))));
+    }
+    if (action === 'get_vod_info') {
+      const id = Number(p.get('vod_id'));
+      return send(200, 'application/json', JSON.stringify({
+        info: { plot: 'Sinopse do filme de teste ' + id + ' <b>sem HTML</b>.', genre: 'Teste', cast: 'Elenco de Teste', releasedate: '2024-05-01', duration_secs: 634, rating: '7.5' },
+        movie_data: { stream_id: id, container_extension: 'm3u8' },
+      }));
+    }
+    if (action === 'get_series') {
+      return send(200, 'application/json', JSON.stringify(Array.from({ length: SERIES }, (_, k) => ({
+        num: k + 1, name: 'Série de Teste ' + (k + 1), series_id: 700 + k, cover: '', rating: '8', category_id: String(101 + (k % 3)), plot: 'Série de teste',
+      }))));
+    }
+    if (action === 'get_series_info') {
+      const sid = Number(p.get('series_id'));
+      const episodes = {};
+      for (const season of [1, 2]) {
+        episodes[season] = [1, 2, 3, 4].map((e) => ({
+          id: String(sid * 100 + season * 10 + e), episode_num: e, season, title: `Episódio ${e} da temporada ${season}`, container_extension: 'm3u8',
+          info: { plot: 'Episódio de teste', duration_secs: 634 },
+        }));
+      }
+      return send(200, 'application/json', JSON.stringify({ info: { name: 'Série ' + sid, plot: 'Sinopse da série de teste', genre: 'Teste', rating: '8' }, episodes, seasons: [] }));
+    }
     return send(200, 'application/json', '[]');
+  }
+  // reprodução de VOD de teste: redireciona para um HLS público de teste (Mux)
+  if (/^\/(movie|series)\/[^/]+\/[^/]+\/\d+\.\w+$/.test(u.pathname)) {
+    res.writeHead(302, { Location: STREAMS[0] });
+    return res.end();
   }
   send(404, 'text/plain', 'not found');
 }).listen(PORT, '0.0.0.0', () => {

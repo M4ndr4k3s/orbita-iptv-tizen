@@ -22,12 +22,9 @@ window.__E2E__ = (async () => {
   for (let i = 0; i < 40 && sel() !== 'Canal de Teste 1'; i++) { press('up'); await sleep(40); }
   check('canal 1 selecionado', sel() === 'Canal de Teste 1', sel());
 
-  // guia baixa em segundo plano depois da importação: mexe a seleção para reconsultar
+  // guia baixa em segundo plano depois da importação: o painel atualiza sozinho, sem mexer na seleção
   const t0 = Date.now();
-  // (até 2 min; o until dos helpers não aceita função assíncrona)
-  while (!q('.lp-epg .epg-now') && Date.now() - t0 < 120000) {
-    press('down'); await sleep(400); press('up'); await sleep(900);
-  }
+  await until(() => q('.lp-epg .epg-now'), 120000);
   metrics.ateGuiaMs = Date.now() - t0;
   check('painel mostra "Agora" do guia', !!q('.lp-epg .epg-now'), txt('.lp-epg'));
   check('título decodificado (&amp; → &) e do canal certo', /& Cia \(canal 1\)/.test(txt('.lp-epg .epg-now .epg-title')), txt('.lp-epg .epg-now .epg-title'));

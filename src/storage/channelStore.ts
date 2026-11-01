@@ -165,13 +165,19 @@ export async function channelIds(gk: string, group: string | null, kind = 'live'
   // "Todos os canais": os ids já estão no registro de busca (≈0,3 s para 88 mil na TV;
   // getAllKeys no índice composto levou 13 s)
   if (group == null && kind === 'live') return (await loadSearchIndex(gk)).ids.slice();
+  // "Todos" de filmes/séries: mesma ideia (getAllKeys em [gk, kind] levou ~8 s com 37 mil filmes)
+  if (group == null) {
+    const idx = await loadSearchIndex(gk);
+    const list = kind === 'movie' ? idx.movies : kind === 'series' ? idx.series : undefined;
+    if (list) return list.slice();
+  }
   const db = await openDb();
   const st = db.transaction('channels', 'readonly').objectStore('channels');
   const keys =
     group == null
       ? await req(st.index('gk_kind').getAllKeys(IDBKeyRange.only([gk, kind])))
-      : await req(st.index('gk_group').getAllKeys(IDBKeyRange.only([gk, group])));
-  // o índice de grupo pode misturar tipos com o mesmo nome; o id já vem ordenado
+      : await req(st.index('gk_kind_group').getAllKeys(IDBKeyRange.only([gk, kind, group])));
+  // o id já carrega a ordem da lista
   return (keys as string[]).sort();
 }
 
@@ -184,7 +190,7 @@ export async function getMany(ids: string[]): Promise<Array<Channel | null>> {
 // índice de busca em memória da última geração consultada (só ao vivo)
 let searchCache: SearchIndex | null = null;
 
-async function loadSearchIndex(gk: string): Promise<{ ids: string[]; q: string[] }> {
+async function loadSearchIndex(gk: string): Promise<SearchIndex> {
   if (searchCache && searchCache.gk === gk) return searchCache;
   const db = await openDb();
   // caminho rápido: índice gravado na importação (um único registro)
@@ -228,13 +234,13 @@ export async function searchIds(gk: string, term: string, limit = 300): Promise<
 }
 
 /** Página de itens de um grupo, na ordem da lista. */
-export async function getGroupPage(gk: string, group: string, offset: number, limit: number): Promise<Channel[]> {
+export async function getGroupPage(gk: string, group: string, offset: number, limit: number, kind = 'live'): Promise<Channel[]> {
   const db = await openDb();
-  const idx = db.transaction('channels', 'readonly').objectStore('channels').index('gk_group');
+  const idx = db.transaction('channels', 'readonly').objectStore('channels').index('gk_kind_group');
   const out: Channel[] = [];
   await new Promise<void>((resolve, reject) => {
     let skipped = offset === 0;
-    const cur = idx.openCursor(IDBKeyRange.only([gk, group]));
+    const cur = idx.openCursor(IDBKeyRange.only([gk, kind, group]));
     cur.onsuccess = () => {
       const c = cur.result;
       if (!c) return resolve();
