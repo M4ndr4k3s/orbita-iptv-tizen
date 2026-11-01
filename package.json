@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "wgt": "node scripts/build.mjs --wgt",
     "tv": "node scripts/build.mjs --wgt --install",
+    "release": "node scripts/build.mjs --wgt --release",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "tsc --noEmit && vitest run",

@@ -22,6 +22,22 @@ const TARGET = 'chrome76';
 
 const args = new Set(process.argv.slice(2));
 const dev = args.has('--dev');
+const release = args.has('--release');
+
+// lista de teste local (dev/lista-teste.json, fora do Git): só em builds de teste
+function devSeed() {
+  const file = join(ROOT, 'dev', 'lista-teste.json');
+  if (release || !existsSync(file)) return null;
+  const s = JSON.parse(readFileSync(file, 'utf8'));
+  const allowed = ['kind', 'name', 'url', 'server', 'username', 'password', 'epgUrl'];
+  if (s.kind !== 'm3u' && s.kind !== 'xtream') throw new Error('dev/lista-teste.json: kind deve ser m3u ou xtream');
+  const clean = {};
+  for (const k of allowed) if (typeof s[k] === 'string') clean[k] = s[k];
+  // não imprime URL/credenciais
+  console.log(`lista de teste incluída: "${clean.name || '(sem nome)'}" (${clean.kind}) — use --release para gerar sem ela`);
+  return clean;
+}
+const seed = devSeed();
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
 // validação simples: estes valores vão para linha de comando
@@ -41,7 +57,7 @@ await build({
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   charset: 'utf8',
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __DEV_SEED__: JSON.stringify(seed) },
   logLevel: 'warning',
 });
 await build({

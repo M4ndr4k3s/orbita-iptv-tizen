@@ -19,6 +19,7 @@ import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
 import { settings } from '../storage/settings';
 import { DataClient } from '../storage/dataClient';
+import { ensureDevSeed } from './devSeed';
 import { MemoryStore, type Store } from '../storage/store';
 import type { Source } from '../playlist/source';
 import { t, type I18nKey } from '../services/i18n';
@@ -165,6 +166,7 @@ async function boot(): Promise<void> {
   const sources = new SourceService(store, settings);
   try {
     await sources.load();
+    await ensureDevSeed(sources);
   } catch {
     /* banco ilegível: começa vazio, sem travar a inicialização */
   }

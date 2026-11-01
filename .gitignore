@@ -6,3 +6,6 @@ build/
 *.p12
 *.pwd
 *.pri
+
+# lista de teste local (contém credenciais): nunca versionar
+dev/

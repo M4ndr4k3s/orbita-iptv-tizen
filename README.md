@@ -16,7 +16,10 @@ npm run check        # typecheck + testes unitários
 npm run preview      # build de dev + servidor em http://localhost:5173 (visual no navegador)
 npm run wgt          # build + pacote assinado build/Orbita.wgt
 npm run tv           # build + pacote + instala e abre na TV
+npm run release      # pacote de produção (sem a lista de teste)
 ```
+
+**Lista de teste fixa:** se `dev/lista-teste.json` existir (pasta ignorada pelo Git; formato em `dev/README.md`), as builds de teste cadastram e ativam essa lista toda vez que o app abre. `npm run release` gera o pacote sem ela.
 
 Variáveis de ambiente opcionais:
 
