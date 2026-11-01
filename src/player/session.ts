@@ -38,6 +38,10 @@ export interface SessionOptions {
 // erros em que repetir não adianta (formato/codec sem suporte, URL malformada)
 const FATAL = /NOT_SUPPORTED|INVALID_URI|UNSUPPORTED|INVALID_PARAMETER/i;
 
+// reabrir a mesma URL logo depois de fechar travava o AVPlay até o timeout (~20 s);
+// com uma pausa curta (como na nova tentativa automática) abre em ~1,5 s
+export const REOPEN_GAP_MS = 1000;
+
 export class PlaybackSession {
   private st: SessionState;
   private url = '';
@@ -47,6 +51,7 @@ export class PlaybackSession {
   private stallTimer: unknown = null;
   private retryTimer: unknown = null;
   private listeners: Array<(s: SessionState) => void> = [];
+  private subListeners: Array<(text: string, durationMs: number) => void> = [];
   private readonly o: Required<SessionOptions>;
 
   constructor(private engine: PlayerEngine, opts: SessionOptions = {}) {
@@ -66,6 +71,14 @@ export class PlaybackSession {
 
   get state(): SessionState {
     return this.st;
+  }
+
+  /** Legendas do motor (texto puro). */
+  onSubtitle(fn: (text: string, durationMs: number) => void): () => void {
+    this.subListeners.push(fn);
+    return () => {
+      this.subListeners = this.subListeners.filter((l) => l !== fn);
+    };
   }
 
   /** URL em reprodução (vazia se parada). Não exibir/logar: pode ter credenciais. */
@@ -91,6 +104,15 @@ export class PlaybackSession {
     this.hadFirstFrame = false;
     this.st = { ...this.st, positionMs: this.o.live ? 0 : Math.max(0, startMs) };
     this.attemptOpen(1);
+  }
+
+  /** Reabre o stream (ajuste que só vale numa nova abertura): fecha, espera e abre. */
+  restart(url: string, startMs = 0): void {
+    this.clearAll();
+    this.engine.stop();
+    this.url = url;
+    this.set({ status: 'connecting', attempt: 1, percent: 0, error: undefined });
+    this.retryTimer = this.o.setTimer(() => this.play(url, startMs), REOPEN_GAP_MS);
   }
 
   /** VOD: pula para a posição; o vigia de travamento recomeça a contar. */
@@ -172,6 +194,9 @@ export class PlaybackSession {
         break;
       case 'error':
         this.fail(e.code);
+        break;
+      case 'subtitle':
+        for (const l of this.subListeners.slice()) l(e.text, e.durationMs);
         break;
     }
   }

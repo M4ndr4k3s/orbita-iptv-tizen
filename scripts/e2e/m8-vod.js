@@ -52,6 +52,9 @@ window.__E2E__ = (async () => {
   // ── tocar filme ──
   const t0 = Date.now();
   press('ok');
+  // posição guardada de uma rodada interrompida: começa do início
+  await until(() => (V() && st() !== 'idle') || /Continuar assistindo/.test(dialog() || ''), 10000);
+  if (/Continuar assistindo/.test(dialog() || '')) { dlgBtn(/Começar do início/).click(); await sleep(300); }
   await until(() => V() && st() === 'playing', 40000);
   metrics.filmeAteTocarMs = Date.now() - t0;
   check('filme toca', st() === 'playing', V());

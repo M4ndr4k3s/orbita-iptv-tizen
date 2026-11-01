@@ -20,6 +20,7 @@ import { settings } from '../storage/settings';
 import { PlayerScreen, type PlayerHandoff } from './player';
 import { LivePreview } from './livePreview';
 import { streamUrl } from '../player/streamUrl';
+import { liveFormatPref } from '../player/preferences';
 import type { PlaybackSession, SessionState } from '../player/session';
 import { scheduleFor } from '../services/guide';
 import { renderNowNext, renderSchedule } from '../components/epgInfo';
@@ -393,7 +394,7 @@ export class LiveScreen implements Screen {
       const cur = this.chans.item();
       this.paintPanel(cur, true);
       this.loadEpg(cur);
-      if (this.preview && cur && cur.name) this.preview.want(channelKey(cur), streamUrl(cur, this.source!));
+      if (this.preview && cur && cur.name) this.preview.want(channelKey(cur), streamUrl(cur, this.source!, liveFormatPref()));
     }, LOGO_IDLE_MS);
   }
 

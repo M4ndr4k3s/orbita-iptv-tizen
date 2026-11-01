@@ -14,6 +14,8 @@ import type { PlayerEngine } from '../player/engine';
 import { resume } from '../storage/resume';
 import { fmtTime } from '../services/vodInfo';
 import { t } from '../services/i18n';
+import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
+import { applyEnginePrefs, applyTrackPrefs } from '../player/preferences';
 
 declare const __DEV__: boolean;
 
@@ -49,6 +51,9 @@ export class VodPlayerScreen implements Screen {
   private seekTarget = -1;
   private lastSave = 0;
   private started = false;
+  private subs = new SubtitleView();
+  private unsubSubs: (() => void) | null = null;
+  private tracksDone = false;
   private onVisibility = () => {
     if (document.hidden) {
       this.save();
@@ -77,7 +82,7 @@ export class VodPlayerScreen implements Screen {
       ]),
     ]);
     this.errorBox = el('div', { class: 'player-error hidden' });
-    this.root = el('div', { class: 'screen player' }, [this.osd, this.errorBox]);
+    this.root = el('div', { class: 'screen player' }, [this.subs.root, this.osd, this.errorBox]);
   }
 
   mount(): void {
@@ -86,6 +91,8 @@ export class VodPlayerScreen implements Screen {
     if (shell) shell.classList.add('immersive');
     document.addEventListener('visibilitychange', this.onVisibility);
     this.unsub = this.session.onChange((s) => this.render(s));
+    this.unsubSubs = this.session.onSubtitle((txt, d) => this.subs.show(txt, d));
+    applyEnginePrefs(this.engine);
     this.engine.setRect(null);
     this.tick = setInterval(() => this.onTick(), 500);
     if (__DEV__) (window as unknown as Record<string, unknown>).__orbitaVod = () => this.debugState();
@@ -96,6 +103,8 @@ export class VodPlayerScreen implements Screen {
     this.save();
     this.session.stop();
     if (this.unsub) this.unsub();
+    if (this.unsubSubs) this.unsubSubs();
+    this.subs.clear();
     for (const tm of [this.osdTimer, this.seekTimer]) if (tm) clearTimeout(tm);
     if (this.tick) clearInterval(this.tick);
     document.removeEventListener('visibilitychange', this.onVisibility);
@@ -139,6 +148,15 @@ export class VodPlayerScreen implements Screen {
         return true;
       case 'stop':
         this.ctx.back();
+        return true;
+      case 'green':
+        void openPlayerOptions({
+          engine: this.engine,
+          reopen: () => this.session.restart(this.item.url, this.session.state.positionMs),
+          setSubtitles: (on) => this.subs.setOn(on),
+          subtitlesOn: () => this.subs.on,
+          liveXtream: false,
+        });
         return true;
       default:
         return false;
@@ -206,6 +224,10 @@ export class VodPlayerScreen implements Screen {
   }
 
   private render(s: SessionState): void {
+    if (s.status === 'playing' && !this.tracksDone) {
+      this.tracksDone = true;
+      this.subs.setOn(applyTrackPrefs(this.engine, this.engine.info()));
+    }
     let text = '';
     if (s.status === 'connecting') text = t('player.connecting');
     else if (s.status === 'buffering') text = t('player.buffering', { p: s.percent });

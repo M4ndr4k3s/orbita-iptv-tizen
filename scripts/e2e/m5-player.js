@@ -94,6 +94,7 @@ window.__E2E__ = (async () => {
   metrics.heapDepois15Trocas = heapMB();
   check('15 trocas sem crescer heap mais que 5 MB', heapMB() - h0 < 5, [h0, heapMB()]);
 
+  metrics.estadoAntesDoBack = [status(), P() && P().error];
   press('back'); await sleep(600);
   check('Back sai do player e volta à Início', !P() && !document.body.classList.contains('playing') && screen() !== '-', screen());
 

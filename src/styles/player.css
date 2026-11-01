@@ -93,3 +93,22 @@ body.playing #backdrop { display: none; }
 .vod-bar { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.2); margin: 0 var(--sp-2); overflow: hidden; }
 .vod-bar-fill { height: 100%; background: var(--c-cyan); }
 .vod-row { display: flex; align-items: center; justify-content: space-between; }
+
+/* legendas: texto puro centralizado acima da barra do OSD */
+.subs {
+  position: absolute;
+  left: 50%; bottom: 120px;
+  transform: translateX(-50%);
+  max-width: 80%;
+  text-align: center;
+  white-space: pre-line;
+  font-size: 44px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: #fff;
+  /* contorno sem sombra desfocada (custo de pintura baixo) */
+  -webkit-text-stroke: 1px #000;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 6px 18px;
+  border-radius: 8px;
+}

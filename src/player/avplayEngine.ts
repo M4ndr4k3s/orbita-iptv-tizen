@@ -1,7 +1,7 @@
 // Motor AVPlay (webapis.avplay): decodificação por hardware da TV Samsung.
 // O vídeo é desenhado numa camada atrás do HTML, no retângulo do <object>.
 
-import type { EngineEvent, PlayerEngine, StreamInfo, VideoRect } from './engine';
+import type { AspectMode, EngineEvent, PlayerEngine, StreamInfo, VideoRect } from './engine';
 
 interface AVPlayListener {
   onbufferingstart?(): void;
@@ -39,6 +39,7 @@ export interface AVPlay {
   getDuration(): number;
   getTotalTrackInfo?(): AVPlayStreamInfo[];
   setSelectTrack?(type: string, index: number): void;
+  setBufferingParam?(option: string, unit: string, amount: number): void;
   suspend(): void;
   restore(): void;
 }
@@ -69,6 +70,8 @@ export class AvplayEngine implements PlayerEngine {
   private prepSeq = 0;
   private next: { url: string; seq: number; startMs: number } | 'stop' | null = null;
   private seeking = false;
+  private aspect: AspectMode = 'auto';
+  private bufferSec = 0;
   private seekTarget = -1;
   private prepTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -181,11 +184,19 @@ export class AvplayEngine implements PlayerEngine {
         onstreamcompleted: () => emit({ type: 'ended' }),
         onerror: (type) => emit({ type: 'error', code: String(type || 'PLAYER_ERROR') }),
         onevent: () => undefined,
-        onsubtitlechange: () => undefined,
+        onsubtitlechange: (duration, text) => emit({ type: 'subtitle', text: plainText(text), durationMs: Number(duration) || 0 }),
         ondrmevent: () => undefined,
       });
       this.applyRect();
-      this.av.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
+      // buffer só pode ser ajustado antes do preparo. Só o de retomada (depois de uma
+      // travada): mexer no inicial (FOR_PLAY) deixou a abertura em ~25 s na TV
+      if (this.bufferSec > 0 && this.av.setBufferingParam) {
+        try {
+          this.av.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', this.bufferSec);
+        } catch {
+          /* firmware sem suporte: segue com o padrão */
+        }
+      }
       this.preparing = true;
       // preparo que nunca responde: libera a fila (a sessão já terá desistido por timeout)
       this.prepTimer = setTimeout(() => {
@@ -246,11 +257,32 @@ export class AvplayEngine implements PlayerEngine {
     if (st === 'READY' || st === 'PLAYING' || st === 'PAUSED') this.applyRect();
   }
 
-  private applyRect(): void {
-    const r = this.rect;
+  setAspect(mode: AspectMode): void {
+    this.aspect = mode;
+    if (this.preparing) return;
+    const st = this.state();
+    if (st === 'READY' || st === 'PLAYING' || st === 'PAUSED') this.applyRect();
+  }
+
+  setBuffer(seconds: number): void {
+    this.bufferSec = Math.max(0, Math.min(30, Math.floor(seconds)));
+  }
+
+  selectTrack(kind: 'audio' | 'text', index: number): boolean {
+    if (!this.av.setSelectTrack) return false;
     try {
-      if (r) this.av.setDisplayRect(Math.round(r.x), Math.round(r.y), Math.round(r.w), Math.round(r.h));
-      else this.av.setDisplayRect(0, 0, 1920, 1080);
+      this.av.setSelectTrack(kind === 'audio' ? 'AUDIO' : 'TEXT', index);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private applyRect(): void {
+    const box = displayBox(this.rect, this.rect ? 'auto' : this.aspect);
+    try {
+      this.av.setDisplayMethod(box.method);
+      this.av.setDisplayRect(box.x, box.y, box.w, box.h);
     } catch {
       /* estado sem vídeo */
     }
@@ -291,6 +323,11 @@ export class AvplayEngine implements PlayerEngine {
   }
 
   info(): StreamInfo | null {
+    // consultar faixas durante o preparo travava a abertura do stream na TV
+    // (o preparo não respondia e caía no timeout): só com o vídeo pronto
+    if (this.preparing) return null;
+    const state = this.state();
+    if (state !== 'READY' && state !== 'PLAYING' && state !== 'PAUSED') return null;
     let list: AVPlayStreamInfo[];
     try {
       list = this.av.getTotalTrackInfo ? this.av.getTotalTrackInfo() : this.av.getCurrentStreamInfo();
@@ -298,6 +335,14 @@ export class AvplayEngine implements PlayerEngine {
       return null;
     }
     const out: StreamInfo = { audioTracks: [], subtitleTracks: [] };
+    try {
+      for (const c of this.av.getCurrentStreamInfo() || []) {
+        if (c.type === 'AUDIO') out.currentAudio = c.index;
+        else if (c.type === 'TEXT') out.currentText = c.index;
+      }
+    } catch {
+      /* sem stream */
+    }
     for (const t of list || []) {
       const x = parseExtra(t.extra_info);
       if (t.type === 'VIDEO') {
@@ -328,6 +373,42 @@ export class AvplayEngine implements PlayerEngine {
       /* nada a restaurar */
     }
   }
+}
+
+/**
+ * Retângulo e modo do AVPlay para a proporção pedida. 16:9 e 4:3 = vídeo
+ * esticado dentro de uma caixa centralizada dessa proporção.
+ */
+export function displayBox(rect: VideoRect | null, mode: AspectMode): { x: number; y: number; w: number; h: number; method: string } {
+  const r = rect || { x: 0, y: 0, w: 1920, h: 1080 };
+  const round = (b: { x: number; y: number; w: number; h: number }, method: string) => ({
+    x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), method,
+  });
+  if (mode === 'auto') return round(r, 'PLAYER_DISPLAY_MODE_LETTER_BOX');
+  if (mode === 'fill') return round(r, 'PLAYER_DISPLAY_MODE_FULL_SCREEN');
+  const ratio = mode === '4:3' ? 4 / 3 : 16 / 9;
+  let w = r.w;
+  let h = w / ratio;
+  if (h > r.h) {
+    h = r.h;
+    w = h * ratio;
+  }
+  return round({ x: r.x + (r.w - w) / 2, y: r.y + (r.h - h) / 2, w, h }, 'PLAYER_DISPLAY_MODE_FULL_SCREEN');
+}
+
+/** Legenda do AVPlay pode vir com marcação (<i>, <font>): exibida só como texto. */
+export function plainText(s: unknown): string {
+  return String(s == null ? '' : s)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    // o AVPlay manda o texto com um caractere nulo no fim (visto na TV)
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '')
+    .trim()
+    .slice(0, 500);
 }
 
 function errName(e: unknown): string {

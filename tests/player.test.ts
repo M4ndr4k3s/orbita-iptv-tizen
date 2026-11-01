@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PlaybackSession } from '../src/player/session';
+import { PlaybackSession, REOPEN_GAP_MS } from '../src/player/session';
 import type { EngineEvent, PlayerEngine } from '../src/player/engine';
 import { streamUrl, redactUrl } from '../src/player/streamUrl';
 import type { Channel } from '../src/playlist/model';
@@ -18,6 +18,9 @@ class FakeEngine implements PlayerEngine {
   info() { return null; }
   setListener(fn: (e: EngineEvent) => void) { this.fn = fn; }
   setRect() {}
+  setAspect() {}
+  selectTrack() { return false; }
+  setBuffer() {}
   seek() {}
   duration() { return 0; }
   suspend() {}
@@ -56,6 +59,30 @@ describe('PlaybackSession', () => {
     eng.emit({ type: 'error', code: 'PLAYER_ERROR_CONNECTION_FAILED' });
     expect(s.state).toMatchObject({ status: 'failed', error: 'PLAYER_ERROR_CONNECTION_FAILED' });
     expect(eng.opened).toHaveLength(3);
+  });
+
+  it('restart fecha, espera um pouco e só então reabre', () => {
+    s.play('http://a/1.ts');
+    eng.emit({ type: 'playing' });
+    s.restart('http://a/1.ts');
+    expect(s.state.status).toBe('connecting');
+    expect(eng.opened).toHaveLength(1);
+    vi.advanceTimersByTime(REOPEN_GAP_MS);
+    expect(eng.opened).toEqual(['http://a/1.ts', 'http://a/1.ts']);
+  });
+
+  it('stop ou troca de canal durante a espera do restart cancelam a reabertura', () => {
+    s = new PlaybackSession(eng, { startTimeoutMs: 60000, stallTimeoutMs: 60000 });
+    s.play('http://a/1.ts');
+    s.restart('http://a/1.ts');
+    s.play('http://a/2.ts');
+    vi.advanceTimersByTime(REOPEN_GAP_MS * 3);
+    expect(eng.opened).toEqual(['http://a/1.ts', 'http://a/2.ts']);
+    s.restart('http://a/2.ts');
+    s.stop();
+    vi.advanceTimersByTime(REOPEN_GAP_MS * 5);
+    expect(eng.opened).toHaveLength(2);
+    expect(s.state.status).toBe('idle');
   });
 
   it('erro de formato não suportado falha na hora, sem repetir', () => {

@@ -181,3 +181,20 @@ Medições na TV (lista real):
 
 Não testado: legendas e faixas de áudio (marco 9); filmes de listas M3U (tocam pelo mesmo player, sem detalhes); retomada depois de reiniciar o app (usa o mesmo localStorage dos ajustes, testado só na unidade).
 Limitação: na primeira abertura depois de atualizar o app, a migração do banco (novo índice por tipo+categoria) deixa a tela vazia por alguns segundos.
+
+## Marco 9: opções de reprodução (áudio, legendas, proporção, buffer) (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 119/119 (proporção → retângulo, texto de legenda sem marcação, idiomas, preferências inválidas, `restart` da sessão) |
+| `m9-options.js` (botão verde, mock com HLS de teste) | **TV** | 10/10 |
+| Regressões `m5-player`, `m7-epg`, `m8-vod` | **TV** | 20/20, 17/17, 22/22 |
+
+Medições na TV:
+
+| Medida | Antes | Depois |
+|---|---|---|
+| Reabrir o stream ao mudar buffer/formato | ~24 s | **3,4–6,2 s** |
+| Legenda aparece depois de ligada | — | imediata (próxima fala) |
+
+Não testado: troca entre várias faixas de áudio (o stream de teste só tem uma faixa de áudio e uma de legenda, em inglês); formato HLS do Xtream ao vivo em conta real.

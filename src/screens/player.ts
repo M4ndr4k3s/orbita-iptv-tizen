@@ -19,6 +19,8 @@ import { t } from '../services/i18n';
 import { wrapIndex, type ChannelList } from '../services/channelLists';
 import { scheduleFor } from '../services/guide';
 import { renderNowNext } from '../components/epgInfo';
+import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
+import { applyEnginePrefs, applyTrackPrefs, liveFormatPref } from '../player/preferences';
 
 declare const __DEV__: boolean;
 
@@ -55,6 +57,9 @@ export class PlayerScreen implements Screen {
   private osdName: HTMLElement;
   private osdGroup: HTMLElement;
   private osdEpg: HTMLElement;
+  private subs = new SubtitleView();
+  private unsubSubs: (() => void) | null = null;
+  private tracksDone = false;
   private epgSeq = 0;
   private osdFav: SVGSVGElement;
   private osdLogo: HTMLImageElement;
@@ -103,7 +108,7 @@ export class PlayerScreen implements Screen {
     ]);
     this.numberBox = el('div', { class: 'osd-digits hidden' });
     this.errorBox = el('div', { class: 'player-error hidden' });
-    this.root = el('div', { class: 'screen player' }, [this.osd, this.numberBox, this.errorBox]);
+    this.root = el('div', { class: 'screen player' }, [this.subs.root, this.osd, this.numberBox, this.errorBox]);
   }
 
   mount(): void {
@@ -112,6 +117,8 @@ export class PlayerScreen implements Screen {
     if (shell) shell.classList.add('immersive');
     document.addEventListener('visibilitychange', this.onVisibility);
     this.unsub = this.session.onChange((s) => this.render(s));
+    this.unsubSubs = this.session.onSubtitle((txt, d) => this.subs.show(txt, d));
+    applyEnginePrefs(this.engine);
     if (__DEV__) (window as unknown as Record<string, unknown>).__orbitaPlayer = () => this.debugState();
     this.engine.setRect(null);
     this.open(this.current);
@@ -120,6 +127,8 @@ export class PlayerScreen implements Screen {
   unmount(): void {
     if (this.onExit) this.onExit(this.current, this.index);
     if (this.unsub) this.unsub();
+    if (this.unsubSubs) this.unsubSubs();
+    this.subs.clear();
     // a TV ao vivo pega o stream de volta para a mini janela; senão, para
     if (this.handoff.keepAlive) this.handoff.keepAlive(this.session, this.current);
     else this.session.stop();
@@ -169,6 +178,9 @@ export class PlayerScreen implements Screen {
       case 'yellow':
         void this.toggleFavorite();
         return true;
+      case 'green':
+        void this.options();
+        return true;
       case 'left':
       case 'right':
         this.showOsd();
@@ -178,6 +190,16 @@ export class PlayerScreen implements Screen {
     }
   }
 
+  private async options(): Promise<void> {
+    await openPlayerOptions({
+      engine: this.engine,
+      reopen: () => this.open(this.current, true),
+      setSubtitles: (on) => this.subs.setOn(on),
+      subtitlesOn: () => this.subs.on,
+      liveXtream: this.source.kind === 'xtream' && this.current.xid != null,
+    });
+  }
+
   private async toggleFavorite(): Promise<void> {
     const on = await this.ctx.library.toggleFavorite(this.source.id, this.current);
     toast(on ? t('live.favAdded', { name: this.current.name }) : t('live.favRemoved', { name: this.current.name }));
@@ -185,21 +207,28 @@ export class PlayerScreen implements Screen {
     this.showOsd();
   }
 
-  private open(ch: Channel): void {
+  /** restart: reabre mesmo que seja o stream atual (buffer/formato mudaram). */
+  private open(ch: Channel, restart = false): void {
     this.current = ch;
     this.pending = null;
     this.pendingIndex = -1;
     this.historyDone = false;
+    this.tracksDone = false;
+    this.subs.clear();
     this.hideError();
     this.paintChannel(ch);
     this.showOsd();
-    const url = streamUrl(ch, this.source);
+    const url = streamUrl(ch, this.source, liveFormatPref());
     if (!url) {
       this.session.stop();
       this.showError(t('player.fail.noUrl'));
       return;
     }
     // mesmo stream já aberto (veio da mini janela): só continua
+    if (restart) {
+      this.session.restart(url);
+      return;
+    }
     const st = this.session.state.status;
     if (url === this.session.currentUrl && st !== 'idle' && st !== 'failed') {
       this.render(this.session.state);
@@ -297,6 +326,11 @@ export class PlayerScreen implements Screen {
 
   private render(s: SessionState): void {
     // entra no histórico quando a imagem aparece (não ao só passar pelo canal)
+    // faixas no idioma preferido assim que o stream começa
+    if (s.status === 'playing' && !this.tracksDone) {
+      this.tracksDone = true;
+      this.subs.setOn(applyTrackPrefs(this.engine, this.engine.info()));
+    }
     if (s.status === 'playing' && !this.historyDone) {
       this.historyDone = true;
       void this.ctx.library.addHistory(this.source.id, this.current).catch(() => undefined);

@@ -9,6 +9,16 @@ export interface Settings {
   lastLiveCat: string;
   /** mini janela com o vídeo do canal selecionado na TV ao vivo */
   livePreview: boolean;
+  /** proporção da imagem em tela cheia (AspectMode) */
+  aspect: string;
+  /** buffer antes de tocar: 'normal' (padrão da TV) ou 'large' (mais estável, demora mais) */
+  buffer: string;
+  /** Xtream ao vivo: 'ts' ou 'm3u8' (HLS) */
+  liveFormat: string;
+  /** idioma de áudio preferido (código da faixa, ex. 'por'); '' = o padrão do stream */
+  audioLang: string;
+  /** idioma de legenda preferido; '' = desligadas */
+  subLang: string;
 }
 
 const KEY = 'orbita.settings.v1';
@@ -19,6 +29,11 @@ const DEFAULTS: Settings = {
   language: 'pt-BR',
   lastLiveCat: '',
   livePreview: true,
+  aspect: 'auto',
+  buffer: 'normal',
+  liveFormat: 'ts',
+  audioLang: '',
+  subLang: '',
 };
 
 export interface SettingsBackend {

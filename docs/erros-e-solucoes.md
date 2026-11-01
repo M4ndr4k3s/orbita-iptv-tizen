@@ -38,3 +38,8 @@
 | 2026-11-01 | Categoria de filmes com o mesmo nome de uma ao vivo misturava itens | Índice `[gk, group]` sem o tipo | Índice `[gk, kind, group]` (v9) substitui o antigo |
 | 2026-11-01 | Guia baixado com a TV ao vivo aberta não aparecia | A tela usava a cópia da fonte de quando abriu | Lê a fonte atual e escuta mudanças da fonte |
 | 2026-11-01 | Roteiro começou antes do app abrir depois de atualizar | Migração do banco na primeira abertura | Roteiros esperam a barra lateral; limitação registrada |
+| 2026-11-01 | Buffer "grande" deixava a abertura em ~25 s e os saltos travavam | `PLAYER_BUFFER_FOR_PLAY` atrasa o início no AVPlay | Só o buffer de retomada (`FOR_RESUME`), 5 s |
+| 2026-11-01 | Roteiros seguintes falhavam depois do m9 | O m9 deixava buffer grande salvo | O roteiro desfaz as opções pelo próprio menu |
+| 2026-11-01 | Canal travava em "conectando" | Consulta de faixas (`info()`) durante o `prepareAsync` | `info()` só responde com o vídeo pronto |
+| 2026-11-01 | Reabrir o stream (buffer/formato) levava ~24 s | Abrir a mesma URL logo depois de fechar trava o AVPlay até o timeout; a nova tentativa, 1,5 s depois, abria rápido | `PlaybackSession.restart`: fecha, espera 1 s e reabre |
+| 2026-11-01 | Roteiro de filmes falhava com posição guardada | Rodada interrompida deixou retomada salva e o diálogo apareceu | Roteiro escolhe "Começar do início" se perguntar |
