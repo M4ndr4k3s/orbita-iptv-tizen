@@ -1,6 +1,7 @@
 // Fonte de conteúdo cadastrada pelo usuário: lista M3U por URL ou conta Xtream Codes.
 
 import { normalizeHttpUrl, cleanText, cleanCredential, LIMITS, type ValidationError } from '../utils/validate';
+import type { ImportStats } from './model';
 
 export type SourceKind = 'm3u' | 'xtream';
 
@@ -23,6 +24,10 @@ export interface Source {
   lastCheckAt?: number;
   lastStatus?: 'ok' | 'error';
   lastError?: string;
+  /** última importação concluída (aponta para a geração de canais em uso) */
+  import?: ImportStats;
+  /** código do erro da última tentativa de importação, se falhou */
+  importError?: string;
 }
 
 /** Dados vindos do formulário, ainda não validados. */

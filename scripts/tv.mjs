@@ -73,7 +73,7 @@ async function connect() {
 }
 
 async function evaluate(cdp, expression) {
-  const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  const r = await cdp.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, Number(process.env.TV_EVAL_TIMEOUT_MS || 20000));
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result.value;
 }
@@ -107,10 +107,13 @@ if (cmd === 'debug') {
       const vars = Object.entries(process.env).filter(([k]) => k.startsWith('E2E_'))
         .map(([k, v]) => `window.__${k.slice(4)}__=${JSON.stringify(v)};`).join('');
       const code = vars + readFileSync(join(ROOT, 'scripts/e2e/helpers.js'), 'utf8') + ';' + readFileSync(rest[0], 'utf8') + ';window.__E2E__';
-      const r = await cdp.send('Runtime.evaluate', { expression: code, returnByValue: true, awaitPromise: true }, 180000);
+      const r = await cdp.send('Runtime.evaluate', { expression: code, returnByValue: true, awaitPromise: true }, Number(process.env.E2E_TIMEOUT_MS || 900000));
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       const checks = r.result.value || [];
-      for (const c of checks) console.log(c.ok ? 'PASSOU' : 'FALHOU', '-', c.step, c.ok ? '' : '→ ' + JSON.stringify(c.got));
+      for (const c of checks) {
+        const showGot = !c.ok || c.step === 'métricas';
+        console.log(c.ok ? 'PASSOU' : 'FALHOU', '-', c.step, showGot ? '→ ' + JSON.stringify(c.got, null, c.ok ? 2 : 0) : '');
+      }
       const failed = checks.filter((c) => !c.ok).length;
       console.log(`${checks.length - failed}/${checks.length} verificações passaram`);
       if (failed) process.exitCode = 1;

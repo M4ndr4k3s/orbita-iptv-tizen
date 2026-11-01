@@ -57,3 +57,34 @@ Servidor de teste local: `node scripts/mock-iptv.mjs 8097` (M3U sintética, logi
 O que o roteiro e2e cobre: validação de obrigatórios; digitação pelo teclado virtual (teclas, dígitos do controle, vermelho = apagar, verde = concluir); M3U válida; conteúdo não-M3U; Xtream com senha errada, certa e conta vencida; aviso de HTTP sem TLS; senha mascarada; duplicata; menu de ações; troca de lista ativa; Back; foco único.
 
 Não testado: servidor real com HTTPS e certificado inválido; listas com milhares de canais (vem no marco 4).
+
+## Marco 4: importação em stream e listas grandes (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 54/54: parser M3U em qualquer corte de pedaço, linha gigante, JSON em stream, classificação ao vivo/filme/série, higienização de logo/URL, deduplicação, teto de itens, mapeamento Xtream, `runImport` contra servidor HTTP real (stream, não-M3U, Xtream, credencial recusada, cancelamento de download pendurado) |
+| `m3-lists.js` (regressão) | preview | 22/22 |
+| `m4-import.js` | preview | 12/12 |
+| `m4-import.js` | **TV** | **12/12** (3ª rodada, depois das correções abaixo) |
+
+Medições na TV (UN50AU7700, Tizen 6.0), com o mock na rede local:
+
+| Medida | Valor |
+|---|---|
+| M3U 100 mil itens (22 MB): do Salvar até o fim | 116–120 s |
+| Xtream 100 mil canais: do Salvar até o fim | 144 s |
+| Heap JS da página durante a importação | 9,5 MB, estável (o worker tem heap próprio, que esta medida não enxerga) |
+| Fluidez durante a importação M3U | quadro médio 17,9 ms, p95 28 ms, pior 120 ms |
+| Fluidez durante a importação Xtream | quadro médio 18,2 ms, p95 26 ms, **3 travadas de 2,4–3,0 s no começo** |
+| Fechar o progresso ao cancelar | < 1 s |
+| Remover lista de 100 mil itens | 24,7 s (em segundo plano, interface livre) |
+| Apagar a geração parcial após cancelar | 176 s (em segundo plano) |
+
+Problemas que a TV revelou, todos corrigidos e remedidos:
+1. IndexedDB na thread principal travava a interface por 1,4–3,8 s com o banco grande. **Todo acesso ao banco foi para o worker.**
+2. A varredura do índice para achar gerações levava 9 s. Troquei pelo registro `gens`.
+3. Apagar em fatias de 5 mil levou 200 s. Voltei ao `delete` único por intervalo (no worker).
+4. O cancelamento esperava o worker. Agora fecha na hora.
+5. O worker apagava a geração parcial antes de avisar. Agora avisa primeiro.
+
+**Risco residual (pendente):** com o banco grande e logo depois de apagar muitos registros, ainda houve 3 travadas de 2–3 s no começo da importação Xtream, mesmo sem a interface tocar no IndexedDB. A suspeita é a compactação interna do armazenamento do Tizen depois da exclusão em massa. Como cada atualização apaga a geração anterior (~100 mil itens), isso pode aparecer em toda atualização. Estratégia a avaliar: atualizar no lugar (sobrescrever ids e apagar só a sobra) em vez de geração nova, pesando o custo em atomicidade.

@@ -33,7 +33,7 @@ mkdirSync(OUT, { recursive: true });
 
 const t0 = Date.now();
 await build({
-  entryPoints: { app: join(ROOT, 'src/app/main.ts') },
+  entryPoints: { app: join(ROOT, 'src/app/main.ts'), worker: join(ROOT, 'src/workers/data.worker.ts') },
   outdir: OUT,
   bundle: true,
   format: 'iife',

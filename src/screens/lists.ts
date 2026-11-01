@@ -14,6 +14,8 @@ import { checkSource } from '../services/sourceCheck';
 import { checkMessage } from '../services/messages';
 import { SourceEditScreen } from './sourceEdit';
 import { t } from '../services/i18n';
+import { importLine } from '../services/format';
+import { importWithProgress } from './importFlow';
 
 export class ListsScreen implements Screen {
   readonly root: HTMLElement;
@@ -71,6 +73,7 @@ export class ListsScreen implements Screen {
       ]),
       el('div', { class: 'src-name', text: s.name }),
       el('div', { class: 'src-desc', text: describeSource(s) }),
+      el('div', { class: 'src-stats', text: importLine(s) }),
       el('div', { class: 'src-status st-' + status, text: t(('lists.status.' + status) as 'lists.status.ok') }),
     ]);
     card.addEventListener('click', () => this.actions(s.id));
@@ -81,10 +84,11 @@ export class ListsScreen implements Screen {
     const s = this.ctx.sources.get(id);
     if (!s) return;
     const isActive = this.ctx.sources.active() === s;
-    type A = 'use' | 'test' | 'edit' | 'remove' | 'cancel';
+    type A = 'use' | 'refresh' | 'test' | 'edit' | 'remove' | 'cancel';
     const acts: Array<{ id: A; label: string; primary?: boolean; danger?: boolean }> = [];
     if (!isActive) acts.push({ id: 'use', label: t('lists.action.use'), primary: true });
-    acts.push({ id: 'test', label: t('lists.action.test'), primary: isActive });
+    acts.push({ id: 'refresh', label: t('lists.action.refresh'), primary: isActive });
+    acts.push({ id: 'test', label: t('lists.action.test') });
     acts.push({ id: 'edit', label: t('lists.action.edit') });
     acts.push({ id: 'remove', label: t('lists.action.remove'), danger: true });
     acts.push({ id: 'cancel', label: t('lists.action.cancel') });
@@ -93,6 +97,9 @@ export class ListsScreen implements Screen {
     if (a === 'use') {
       this.ctx.sources.setActive(s.id);
       toast(t('lists.activated', { name: s.name }));
+      if (!s.import) await importWithProgress(this.ctx.imports, s);
+    } else if (a === 'refresh') {
+      await importWithProgress(this.ctx.imports, s);
     } else if (a === 'edit') {
       this.ctx.push(new SourceEditScreen(this.ctx, s));
     } else if (a === 'test') {
@@ -106,7 +113,10 @@ export class ListsScreen implements Screen {
         { id: 'remove', label: t('lists.action.remove'), danger: true },
       ]);
       if (ok === 'remove') {
+        this.ctx.imports.cancel(s.id);
         await this.ctx.sources.remove(s.id);
+        // apaga os canais da lista removida
+        await this.ctx.imports.cleanup().catch(() => undefined);
         toast(t('lists.removed'));
       }
     }

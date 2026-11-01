@@ -18,10 +18,12 @@ import { ListsScreen } from '../screens/lists';
 import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
 import { settings } from '../storage/settings';
-import { idbStore, openDb } from '../storage/db';
+import { DataClient } from '../storage/dataClient';
 import { MemoryStore, type Store } from '../storage/store';
 import type { Source } from '../playlist/source';
 import { t, type I18nKey } from '../services/i18n';
+import { ImportService } from '../services/importService';
+import { importWithProgress, importInBackground } from '../screens/importFlow';
 
 declare const __APP_VERSION__: string;
 
@@ -42,14 +44,23 @@ class App implements AppContext {
   private sidebar: Sidebar;
   private exiting = false;
 
-  constructor(host: HTMLElement, private keys: KeyRegistration, readonly sources: SourceService) {
+  readonly imports: ImportService;
+
+  constructor(host: HTMLElement, private keys: KeyRegistration, readonly sources: SourceService, readonly data: DataClient) {
+    this.imports = new ImportService(sources, data);
     const screens = el('main', { class: 'screens' });
     this.sidebar = new Sidebar((id) => this.go(id));
     const shell = el('div', { class: 'shell' }, [this.sidebar.root, screens]);
     host.appendChild(shell);
     this.router = new Router(screens, shell);
     this.router.push(new HomeScreen(this, () => this.confirmExit()));
-    if (sources.list().length > 1 && settings.get().askSourceOnStart) this.push(new SourcePickerScreen(this));
+  }
+
+  /** Abre a escolha de lista (se houver mais de uma) e só então inicia o carregamento automático. */
+  startWhenReady(): void {
+    if (this.sources.list().length > 1 && settings.get().askSourceOnStart) {
+      this.push(new SourcePickerScreen(this, () => this.startAutoRefresh()));
+    } else this.startAutoRefresh();
   }
 
   /** Navega para uma seção: a pilha vira [início, seção]. */
@@ -76,6 +87,21 @@ class App implements AppContext {
     const cur = this.router.current;
     if (cur && cur.onBack && cur.onBack() === false) return;
     if (this.router.pop() && this.router.depth === 1) this.sidebar.setActive('home');
+  }
+
+  /**
+   * Na abertura e a cada 30 min: lista ativa nunca carregada abre o progresso;
+   * intervalo de atualização vencido atualiza em segundo plano.
+   */
+  startAutoRefresh(): void {
+    const check = (atBoot: boolean) => {
+      const s = this.sources.active();
+      if (!s || this.imports.isRunning(s.id) || !this.imports.isDue(s)) return;
+      if (!s.import && atBoot && !isOverlayOpen()) void importWithProgress(this.imports, s);
+      else if (s.import) importInBackground(this.imports, s);
+    };
+    void this.imports.cleanup().catch(() => undefined).then(() => check(true));
+    setInterval(() => check(false), 30 * 60 * 1000);
   }
 
   private async confirmExit(): Promise<void> {
@@ -120,11 +146,11 @@ class App implements AppContext {
   }
 }
 
-/** IndexedDB; se indisponível, segue em memória e avisa (nada é salvo). */
-async function sourceStore(): Promise<{ store: Store<Source>; persistent: boolean }> {
+/** IndexedDB via worker; se indisponível, segue em memória e avisa (nada é salvo). */
+async function sourceStore(data: DataClient): Promise<{ store: Store<Source>; persistent: boolean }> {
   try {
-    await openDb();
-    return { store: idbStore<Source>('sources'), persistent: true };
+    await data.call('ping');
+    return { store: data.sourceStore(), persistent: true };
   } catch {
     return { store: new MemoryStore<Source>(), persistent: false };
   }
@@ -134,15 +160,17 @@ async function boot(): Promise<void> {
   const host = document.getElementById('app');
   if (!host) return;
   const keys = registerRemoteKeys();
-  const { store, persistent } = await sourceStore();
+  const data = new DataClient();
+  const { store, persistent } = await sourceStore(data);
   const sources = new SourceService(store, settings);
   try {
     await sources.load();
   } catch {
     /* banco ilegível: começa vazio, sem travar a inicialização */
   }
-  const app = new App(host, keys, sources);
+  const app = new App(host, keys, sources, data);
   if (!persistent) toast(t('storage.unavailable'), 'error', 8000);
+  else app.startWhenReady();
   document.addEventListener('keydown', (e) => {
     const key = toRemoteKey(e);
     if (!key) return;

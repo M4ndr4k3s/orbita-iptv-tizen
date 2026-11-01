@@ -14,4 +14,11 @@
 | 2026-11-01 | Porta 8090 ocupada ao subir o mock | Outro processo da máquina já usava a porta | Mock aceita porta por argumento (usando 8097) |
 | 2026-11-01 | `eval` dos roteiros no preview bloqueado | A CSP do app proíbe `unsafe-eval` (comportamento desejado) | Preview carrega os roteiros por `<script>` da mesma origem (`/e2e/`, só no servidor de dev); na TV via CDP |
 | 2026-11-01 | Cancelar teste lento levava 2,6 s na TV | O `fetch` abortado do Tizen demora a rejeitar | `withBusy` fecha e devolve `null` na hora do Back, sem esperar a tarefa |
+| 2026-11-01 | Parser M3U: o resto de uma linha gigante virava a URL do canal anterior | O descarte cortava só o pedaço atual | Estado `discarding` até a próxima quebra de linha |
+| 2026-11-01 | Cancelamento não interrompia o download do corpo | `fetchWithTimeout` desligava o vínculo com o `signal` depois dos cabeçalhos | `streamText` corre a leitura contra o abort |
+| 2026-11-01 | `tsc` falhava nos testes que usam `node:http` | Sem `@types/node`, que seria dependência nova | Typecheck cobre `src/`; os testes rodam no vitest |
+| 2026-11-01 | Interface travava 1,4–3,8 s durante as importações na TV | IndexedDB na thread principal com o banco grande | Worker de dados exclusivo; a interface usa RPC (`DataClient`) |
+| 2026-11-01 | Abertura do app e limpeza lentas (9 s+) | Varredura `nextunique` no índice de 100 mil canais | Registro `gens`; índice `gk` dos canais removido (v4), e a importação ficou 14% mais rápida |
+| 2026-11-01 | Apagar 60 mil itens em fatias levou 200 s | No Tizen o custo do IndexedDB é por transação | `delete` único por intervalo, só no worker |
+| 2026-11-01 | Inspector caiu (ECONNRESET) durante os testes longos | O app ficou preso na varredura do índice (item acima) | Resolvido pelas mudanças acima; o `tv.mjs` tem timeouts configuráveis |
 | (anterior) | `tizen install`: `[target]: null` | TV não conectada no SDB | `build.mjs --install` roda `sdb connect` antes |

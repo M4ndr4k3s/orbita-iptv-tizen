@@ -29,7 +29,8 @@ window.T = (() => {
     let i = 0;
     while (i < s.length) {
       const tok = SHORT.find((x) => s.startsWith(x, i)) || s[i];
-      const key = [...document.querySelectorAll('.kb-key')].find((x) => x.textContent === tok);
+      const label = tok === ' ' ? 'Espaço' : tok;
+      const key = [...document.querySelectorAll('.kb-key')].find((x) => x.textContent === label);
       if (!key) throw new Error('tecla não encontrada: ' + tok);
       key.click();
       i += tok.length;
@@ -51,5 +52,13 @@ window.T = (() => {
     }
     return false;
   };
-  return { press, sleep, focused, screen, dialog, type, activate, until };
+  // espera o resultado de um carregamento de lista e fecha o aviso; devolve o texto
+  const afterImport = async (ms = 600000) => {
+    await until(() => /Lista carregada|Não foi possível carregar/.test(dialog() || ''), ms);
+    const text = dialog();
+    press('ok');
+    await sleep(150);
+    return text;
+  };
+  return { press, sleep, focused, screen, dialog, type, activate, until, afterImport };
 })();

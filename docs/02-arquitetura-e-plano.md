@@ -56,6 +56,23 @@ docs/
 
 Regras de dependência: `screens → services/components/navigation`; `services → storage/playlist/epg/vod/utils`; `player` não conhece telas; nada importa de `screens`.
 
+## Importação de listas (implementado no marco 4)
+
+```
+UI (ImportService) ──postMessage──▶ Web Worker (import.worker.ts)
+                                     ├─ streamText(): fetch em pedaços, timeout de inatividade, cancelável
+                                     ├─ M3uParser / JsonArrayStream: parse incremental
+                                     ├─ ChannelBuilder: valida, deduplica, agrupa, numera
+                                     └─ IndexedDB: lotes de 2.000 itens por transação
+```
+
+- **Gerações**: cada importação grava em uma geração nova (`gk = fonte:carimbo`). A fonte só passa a apontar para ela quando termina, e só então a anterior é apagada. Se a importação falhar ou for cancelada no meio, os canais antigos continuam valendo.
+- **Registro `gens`**: guarda o estado das gerações (`writing`/`ready`). A limpeza de órfãs lê só esse registro, porque no IndexedDB da TV varrer o índice de 100 mil canais leva ~9 s.
+- **Ids** `gk:00000001`: ordem da lista preservada e apagar uma geração é um único `delete(IDBKeyRange)`.
+- **Credenciais**: canais Xtream guardam só `stream_id`. A URL com usuário/senha é montada na hora de tocar.
+- **Limites**: até 300 mil itens por fonte, linhas M3U de até 16 KB, objetos JSON de até 256 KB, campos truncados (nome 200, grupo 120, URL 2.048).
+- **Higienização**: streams só `http(s)/rtsp/rtmp/udp/rtp`; logos só `http(s)` sem aspas ou `<>`; caracteres de controle removidos.
+
 ## Segurança (resumo do modelo de ameaça)
 
 - **Ativos**: URLs de listas e credenciais Xtream do usuário, PIN parental, histórico.

@@ -11,6 +11,8 @@ import type { SectionId } from '../components/sidebar';
 import { describeSource } from '../playlist/source';
 import { SourcePickerScreen } from './sourcePicker';
 import { focus } from '../navigation/focus';
+import { importLine } from '../services/format';
+import { importWithProgress } from './importFlow';
 import { t, type I18nKey } from '../services/i18n';
 
 const SHORTCUTS: Array<[SectionId, IconName, I18nKey]> = [
@@ -60,13 +62,19 @@ export class HomeScreen implements Screen {
       ]));
     } else {
       const actions = el('div', { class: 'hero-actions' });
+      const loaded = !!active.import;
+      actions.appendChild(button(loaded ? t('home.refresh') : t('home.loadNow'), {
+        icon: 'lists', variant: 'primary', autofocus: true,
+        onClick: () => void importWithProgress(this.ctx.imports, active),
+      }));
       if (this.ctx.sources.list().length > 1) {
-        actions.appendChild(button(t('home.switchList'), { icon: 'lists', variant: 'primary', autofocus: true, onClick: () => this.ctx.push(new SourcePickerScreen(this.ctx)) }));
+        actions.appendChild(button(t('home.switchList'), { icon: 'lists', onClick: () => this.ctx.push(new SourcePickerScreen(this.ctx)) }));
       }
-      actions.appendChild(button(t('home.manageLists'), { icon: 'settings', variant: actions.childNodes.length ? 'ghost' : 'primary', autofocus: !actions.childNodes.length, onClick: () => this.ctx.go('lists') }));
+      actions.appendChild(button(t('home.manageLists'), { icon: 'settings', onClick: () => this.ctx.go('lists') }));
       this.hero.appendChild(el('p', { class: 'hero-kicker', text: t('home.activeList') }));
       this.hero.appendChild(el('h1', { class: 'hero-title', text: active.name }));
-      this.hero.appendChild(el('p', { class: 'hero-text', text: describeSource(active) + ' · ' + t('home.contentSoon') }));
+      this.hero.appendChild(el('p', { class: 'hero-stats', text: importLine(active) }));
+      this.hero.appendChild(el('p', { class: 'hero-text', text: describeSource(active) + (loaded ? ' · ' + t('home.contentNext') : '') }));
       this.hero.appendChild(actions);
     }
     // se o foco estava num botão recriado, devolve ao novo botão principal

@@ -3,7 +3,7 @@
 // Publica em window.__E2E__ uma Promise com a lista de verificações { ok, step, got }.
 window.__E2E__ = (async () => {
   const MOCK = window.__MOCK__;
-  const { press, sleep, focused, screen, dialog, type, activate, until } = T;
+  const { press, sleep, focused, screen, dialog, type, activate, until, afterImport } = T;
   const out = [];
   const check = (step, cond, got) => out.push({ ok: !!cond, step, got });
   // abre o campo (OK no campo), digita no teclado virtual e conclui com o botão verde
@@ -39,6 +39,8 @@ window.__E2E__ = (async () => {
   save();
   await until(() => screen() === 'Listas');
   check('M3U testada, salva e volta para Listas', screen() === 'Listas', screen() + ' / ' + dialog());
+  const imp1 = await afterImport();
+  check('canais da M3U carregados após salvar', /Lista carregada/.test(imp1 || ''), imp1);
   const card1 = document.querySelector('.src-card');
   check('card mostra "Conexão verificada" e "Ativa"', card1 && /Conexão verificada/.test(card1.textContent) && /Ativa/.test(card1.textContent), card1 && card1.textContent);
 
@@ -68,6 +70,8 @@ window.__E2E__ = (async () => {
   save();
   await until(() => screen() === 'Listas');
   check('Xtream salva (2 listas)', document.querySelectorAll('.src-card').length === 2, document.querySelectorAll('.src-card').length);
+  const imp2 = await afterImport();
+  check('canais do Xtream carregados após salvar', /Lista carregada/.test(imp2 || ''), imp2);
 
   // 5) conta vencida
   await activate('Adicionar lista');
@@ -93,6 +97,7 @@ window.__E2E__ = (async () => {
   cards[1].click(); await sleep(150);
   check('menu de ações abre', /Usar esta lista/.test(dialog() || ''), dialog());
   press('ok'); await sleep(150);
+  if (/Carregando/.test(dialog() || '')) await afterImport();
   check('2ª lista virou ativa', /Ativa/.test(document.querySelectorAll('.src-card')[1].textContent), document.querySelectorAll('.src-card')[1].textContent);
 
   check('nunca mais de um foco', focused().indexOf('!!') < 0, focused());

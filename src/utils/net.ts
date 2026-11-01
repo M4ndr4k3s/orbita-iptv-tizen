@@ -86,6 +86,60 @@ export async function readHead(res: Response, bytes: number): Promise<string> {
   return out.slice(0, bytes);
 }
 
+/**
+ * Lê o corpo como texto em pedaços. Aborta se o servidor ficar `idleMs` sem
+ * mandar dados (conexões IPTV às vezes "congelam" no meio do download).
+ */
+export async function* streamText(
+  url: string,
+  opts: FetchOpts & { idleMs?: number; onBytes?: (total: number) => void } = {},
+): AsyncGenerator<string> {
+  const res = await fetchWithTimeout(url, opts);
+  if (!res.body) {
+    const t = await res.text();
+    if (opts.onBytes) opts.onBytes(t.length);
+    yield t;
+    return;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  const idleMs = opts.idleMs || 30000;
+  let total = 0;
+  // o fetch já devolveu os cabeçalhos: o cancelamento do corpo é tratado aqui
+  const signal = opts.signal;
+  let onAbort: (() => void) | null = null;
+  const aborted = new Promise<never>((_, reject) => {
+    if (!signal) return;
+    onAbort = () => reject(new NetError('aborted'));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort);
+  });
+  aborted.catch(() => undefined);
+  try {
+    for (;;) {
+      let timer = 0 as unknown as ReturnType<typeof setTimeout>;
+      const idle = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new NetError('timeout')), idleMs);
+      });
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await Promise.race([reader.read(), idle, aborted]);
+      } finally {
+        clearTimeout(timer);
+      }
+      if (chunk.done) break;
+      total += chunk.value.byteLength;
+      if (opts.onBytes) opts.onBytes(total);
+      yield decoder.decode(chunk.value, { stream: true });
+    }
+    const tail = decoder.decode();
+    if (tail) yield tail;
+  } finally {
+    if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+    reader.cancel().catch(() => undefined);
+  }
+}
+
 export async function fetchJson<T>(url: string, maxBytes: number, opts: FetchOpts = {}): Promise<T> {
   const res = await fetchWithTimeout(url, opts);
   const text = await readTextLimited(res, maxBytes);

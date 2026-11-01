@@ -4,6 +4,7 @@ import type { Store } from '../storage/store';
 import { newId } from '../storage/store';
 import type { SettingsStore } from '../storage/settings';
 import { sourceKey, type Source, type ValidSource } from '../playlist/source';
+import type { ImportStats } from '../playlist/model';
 
 type Listener = () => void;
 
@@ -85,6 +86,18 @@ export class SourceService {
     await this.store.put(s);
     this.cache = this.cache.map((x) => (x.id === id ? s : x));
     this.emit();
+  }
+
+  /** Registra o resultado de uma importação; devolve a geração anterior (para apagar). */
+  async setImport(id: string, result: { stats?: ImportStats; error?: string }): Promise<string | undefined> {
+    const cur = this.get(id);
+    if (!cur) return undefined;
+    const previous = cur.import ? cur.import.gk : undefined;
+    const s: Source = result.stats ? { ...cur, import: result.stats, importError: undefined } : { ...cur, importError: result.error };
+    await this.store.put(s);
+    this.cache = this.cache.map((x) => (x.id === id ? s : x));
+    this.emit();
+    return result.stats ? previous : undefined;
   }
 
   async remove(id: string): Promise<void> {

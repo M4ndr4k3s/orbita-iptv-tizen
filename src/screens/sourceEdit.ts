@@ -17,6 +17,12 @@ import {
 import { checkSource } from '../services/sourceCheck';
 import { checkMessage, validationMessage } from '../services/messages';
 import { t } from '../services/i18n';
+import { importWithProgress } from './importFlow';
+import { sourceKey } from '../playlist/source';
+
+function changedAddress(a: Source, b: Source): boolean {
+  return sourceKey(a) !== sourceKey(b) || a.password !== b.password;
+}
 
 export class SourceEditScreen implements Screen {
   readonly root: HTMLElement;
@@ -174,6 +180,11 @@ export class SourceEditScreen implements Screen {
       await this.ctx.sources.setStatus(saved.id, r.ok, r.ok ? undefined : r.error);
       toast(t('edit.saved'));
       this.ctx.back();
+      // lista nova ou endereço alterado: carrega os canais já
+      const fresh = this.ctx.sources.get(saved.id);
+      if (fresh && r.ok && (!this.existing || !fresh.import || changedAddress(this.existing, fresh))) {
+        await importWithProgress(this.ctx.imports, fresh);
+      }
     } finally {
       this.busy = false;
     }

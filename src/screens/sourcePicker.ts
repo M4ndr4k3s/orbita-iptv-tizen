@@ -11,7 +11,8 @@ import { t } from '../services/i18n';
 export class SourcePickerScreen implements Screen {
   readonly root: HTMLElement;
 
-  constructor(ctx: AppContext) {
+  /** onClose: chamado quando a tela sai da pilha (escolheu ou voltou) */
+  constructor(ctx: AppContext, private onClose?: () => void) {
     const activeId = ctx.sources.active() ? ctx.sources.active()!.id : null;
     const row = el('div', { class: 'picker-row' });
     for (const s of ctx.sources.list()) {
@@ -32,5 +33,10 @@ export class SourcePickerScreen implements Screen {
       row,
       el('div', { class: 'picker-actions' }, [button(t('picker.manage'), { icon: 'settings', onClick: () => ctx.go('lists') })]),
     ]);
+  }
+
+  unmount(): void {
+    // adia para depois que o roteador terminar de trocar a tela
+    if (this.onClose) setTimeout(this.onClose, 0);
   }
 }
