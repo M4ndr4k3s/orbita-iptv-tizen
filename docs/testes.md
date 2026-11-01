@@ -39,3 +39,21 @@ Observação: `webapis.productinfo` devolveu vazio (modelo/firmware "-"). O mode
 | Memória | TV | heap 9,5 MB; 112 nós no DOM |
 
 Pendente: conferir o visual **na tela da TV** (o inspector não tira screenshot) e testar com o controle físico.
+
+## Marco 3: gerenciamento de listas (2026-11-01)
+
+Servidor de teste local: `node scripts/mock-iptv.mjs 8097` (M3U sintética, login Xtream fictício, HTML, rota lenta). Não usei nenhum servidor IPTV de terceiros.
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários (`vitest`) | local | 33/33: URL (esquemas perigosos, `host:porta`, limites), validação de fonte, serviço de listas (inclui recarga = reinício), settings corrompidas, parser de login Xtream, detecção de M3U |
+| `scripts/e2e/m3-lists.js` | preview | 20/20 |
+| `scripts/e2e/m3-lists.js` | **TV** | 20/20 (duas rodadas, a segunda depois da mudança no `withBusy`) |
+| `scripts/e2e/m3-cancel.js` | **TV** | 4/4 depois da correção (antes: Back levava 2,6 s para fechar) |
+| Persistência: encerrar o app e reabrir | **TV** | 2 listas, lista ativa e status preservados; tela "Qual lista você quer usar?" aparece |
+| Reinstalar por cima (`npm run tv`) | **TV** | dados preservados |
+| Memória com 2 listas | **TV** | heap 9,5 MB; 113 nós no DOM |
+
+O que o roteiro e2e cobre: validação de obrigatórios; digitação pelo teclado virtual (teclas, dígitos do controle, vermelho = apagar, verde = concluir); M3U válida; conteúdo não-M3U; Xtream com senha errada, certa e conta vencida; aviso de HTTP sem TLS; senha mascarada; duplicata; menu de ações; troca de lista ativa; Back; foco único.
+
+Não testado: servidor real com HTTPS e certificado inválido; listas com milhares de canais (vem no marco 4).

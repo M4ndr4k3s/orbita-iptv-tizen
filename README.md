@@ -36,6 +36,22 @@ node scripts/tv.mjs logs 15                # console/erros por 15 s
 node scripts/tv.mjs mem                    # heap JS e nós do DOM
 ```
 
+Roteiros de ponta a ponta (rodam na TV, simulando o controle):
+
+```bash
+node scripts/mock-iptv.mjs 8097            # servidor IPTV de TESTE na rede local
+```
+
+```bash
+E2E_MOCK=http://<ip-do-pc>:8097 node scripts/tv.mjs run scripts/e2e/m3-lists.js
+```
+
+## Dados e privacidade
+
+- Listas e contas ficam no IndexedDB do app, isolado pelo Tizen. A senha Xtream fica guardada no aparelho para reconectar e nunca é exibida nem registrada em log.
+- Servidor Xtream sem `https://`: a tela de cadastro avisa que usuário e senha trafegam sem criptografia. É uma limitação do servidor.
+- O app não usa proxy, telemetria nem serviço de terceiros.
+
 ## Documentação
 
 - [Diagnóstico do ambiente](docs/01-diagnostico.md)

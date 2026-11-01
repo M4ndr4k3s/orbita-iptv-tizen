@@ -1,16 +1,26 @@
-// Ponto de entrada: monta o shell (menu + área de telas), roteador e teclado.
+// Ponto de entrada: monta o shell (menu + área de telas), serviços, roteador e teclado.
 import { registerRemoteKeys, toRemoteKey, type KeyRegistration, type RemoteKey } from '../navigation/keys';
 import { focus } from '../navigation/focus';
 import { Router } from './router';
 import { exitApp } from './platform';
 import type { Screen } from './screen';
+import type { AppContext } from './context';
 import { el } from '../utils/dom';
 import { Sidebar, type SectionId } from '../components/sidebar';
-import { choose, isDialogOpen, closeTopDialog } from '../components/dialog';
+import { choose } from '../components/dialog';
+import { isOverlayOpen, topOverlay } from '../components/overlay';
+import { toast } from '../components/toast';
 import type { IconName } from '../components/icons';
 import { HomeScreen } from '../screens/home';
 import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
+import { ListsScreen } from '../screens/lists';
+import { SourcePickerScreen } from '../screens/sourcePicker';
+import { SourceService } from '../services/sourceService';
+import { settings } from '../storage/settings';
+import { idbStore, openDb } from '../storage/db';
+import { MemoryStore, type Store } from '../storage/store';
+import type { Source } from '../playlist/source';
 import { t, type I18nKey } from '../services/i18n';
 
 declare const __APP_VERSION__: string;
@@ -24,22 +34,22 @@ const PENDING: Partial<Record<SectionId, [IconName, I18nKey, number]>> = {
   favorites: ['favorites', 'nav.favorites', 6],
   history: ['history', 'nav.history', 6],
   search: ['search', 'nav.search', 11],
-  lists: ['lists', 'nav.lists', 3],
   settings: ['settings', 'nav.settings', 10],
 };
 
-class App {
+class App implements AppContext {
   private router: Router;
   private sidebar: Sidebar;
   private exiting = false;
 
-  constructor(host: HTMLElement, private keys: KeyRegistration) {
+  constructor(host: HTMLElement, private keys: KeyRegistration, readonly sources: SourceService) {
     const screens = el('main', { class: 'screens' });
     this.sidebar = new Sidebar((id) => this.go(id));
     const shell = el('div', { class: 'shell' }, [this.sidebar.root, screens]);
     host.appendChild(shell);
     this.router = new Router(screens, shell);
-    this.router.push(new HomeScreen((id) => this.go(id), () => this.confirmExit()));
+    this.router.push(new HomeScreen(this, () => this.confirmExit()));
+    if (sources.list().length > 1 && settings.get().askSourceOnStart) this.push(new SourcePickerScreen(this));
   }
 
   /** Navega para uma seção: a pilha vira [início, seção]. */
@@ -50,9 +60,14 @@ class App {
     this.router.push(this.create(id));
   }
 
+  push(screen: Screen): void {
+    this.router.push(screen);
+  }
+
   private create(id: SectionId): Screen {
     const back = () => this.back();
     if (id === 'about') return new AboutScreen(__APP_VERSION__, this.keys, back);
+    if (id === 'lists') return new ListsScreen(this);
     const p = PENDING[id] || (['about', 'nav.home', 0] as [IconName, I18nKey, number]);
     return new PendingScreen(t(p[1]), p[0], p[2], back);
   }
@@ -60,9 +75,7 @@ class App {
   back(): void {
     const cur = this.router.current;
     if (cur && cur.onBack && cur.onBack() === false) return;
-    if (this.router.pop()) {
-      if (this.router.depth === 1) this.sidebar.setActive('home');
-    }
+    if (this.router.pop() && this.router.depth === 1) this.sidebar.setActive('home');
   }
 
   private async confirmExit(): Promise<void> {
@@ -77,8 +90,10 @@ class App {
   }
 
   handleKey(key: RemoteKey): void {
-    if (isDialogOpen()) {
-      if (key.action === 'back') closeTopDialog();
+    if (isOverlayOpen()) {
+      const o = topOverlay()!;
+      if (o.onKey && o.onKey(key)) return;
+      if (key.action === 'back') o.onBack();
       else this.defaultKey(key);
       return;
     }
@@ -105,10 +120,29 @@ class App {
   }
 }
 
-function boot(): void {
+/** IndexedDB; se indisponível, segue em memória e avisa (nada é salvo). */
+async function sourceStore(): Promise<{ store: Store<Source>; persistent: boolean }> {
+  try {
+    await openDb();
+    return { store: idbStore<Source>('sources'), persistent: true };
+  } catch {
+    return { store: new MemoryStore<Source>(), persistent: false };
+  }
+}
+
+async function boot(): Promise<void> {
   const host = document.getElementById('app');
   if (!host) return;
-  const app = new App(host, registerRemoteKeys());
+  const keys = registerRemoteKeys();
+  const { store, persistent } = await sourceStore();
+  const sources = new SourceService(store, settings);
+  try {
+    await sources.load();
+  } catch {
+    /* banco ilegível: começa vazio, sem travar a inicialização */
+  }
+  const app = new App(host, keys, sources);
+  if (!persistent) toast(t('storage.unavailable'), 'error', 8000);
   document.addEventListener('keydown', (e) => {
     const key = toRemoteKey(e);
     if (!key) return;
@@ -118,5 +152,5 @@ function boot(): void {
   });
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-else boot();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void boot());
+else void boot();

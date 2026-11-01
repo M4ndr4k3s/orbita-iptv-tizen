@@ -5,7 +5,10 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = join(fileURLToPath(new URL('..', import.meta.url)), 'build');
+const PROJECT = fileURLToPath(new URL('..', import.meta.url));
+const ROOT = join(PROJECT, 'build');
+// roteiros de teste ficam acessíveis em /e2e/ só neste servidor local de desenvolvimento
+const E2E = join(PROJECT, 'scripts', 'e2e');
 const PORT = Number(process.argv[2] || 5173);
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -16,9 +19,11 @@ const TYPES = {
 createServer(async (req, res) => {
   try {
     const path = decodeURIComponent(new URL(req.url || '/', 'http://x').pathname);
-    const file = normalize(join(ROOT, path === '/' ? 'index.html' : path));
-    // bloqueia path traversal para fora de build/
-    if (file !== ROOT && !file.startsWith(ROOT + sep)) { res.writeHead(403).end(); return; }
+    const base = path.startsWith('/e2e/') ? E2E : ROOT;
+    const rel = path.startsWith('/e2e/') ? path.slice(4) : path === '/' ? 'index.html' : path;
+    const file = normalize(join(base, rel));
+    // bloqueia path traversal para fora da pasta servida
+    if (!file.startsWith(base + sep)) { res.writeHead(403).end(); return; }
     const body = await readFile(file);
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(body);

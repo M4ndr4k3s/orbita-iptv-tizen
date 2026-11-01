@@ -1,0 +1,55 @@
+// Ajudantes injetados na página (TV ou preview) pelos roteiros de teste.
+// Simulam o controle remoto disparando keydown com os códigos Samsung.
+window.T = (() => {
+  const K = { left: 37, up: 38, right: 39, down: 40, ok: 13, back: 10009, red: 403, green: 404, yellow: 405, blue: 406 };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const press = (k, n = 1) => {
+    for (let i = 0; i < n; i++) {
+      const code = typeof k === 'number' ? k : K[k];
+      document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code, bubbles: true }));
+    }
+  };
+  const focused = () => {
+    const e = [...document.querySelectorAll('.is-focused')];
+    if (e.length !== 1) return '!! ' + e.length + ' focos';
+    return e[0].textContent.trim().slice(0, 50);
+  };
+  const screen = () => {
+    const s = [...document.querySelectorAll('.screen')].filter((x) => !x.classList.contains('hidden')).pop();
+    const title = s && s.querySelector('.screen-title, .picker-title, .hero-title');
+    return title ? title.textContent : s ? s.className : '-';
+  };
+  const dialog = () => {
+    const d = document.querySelector('.dlg-layer .dlg-box, .kb-box');
+    return d ? d.textContent.trim().slice(0, 120) : null;
+  };
+  // digita pelo teclado virtual clicando nas teclas (mesmo caminho do OK do controle)
+  const SHORT = ['http://', 'https://', '.m3u', '.com', 'www.'];
+  const type = (s) => {
+    let i = 0;
+    while (i < s.length) {
+      const tok = SHORT.find((x) => s.startsWith(x, i)) || s[i];
+      const key = [...document.querySelectorAll('.kb-key')].find((x) => x.textContent === tok);
+      if (!key) throw new Error('tecla não encontrada: ' + tok);
+      key.click();
+      i += tok.length;
+    }
+  };
+  // "aperta OK" no elemento focável visível cujo texto contém `text` (equivale a navegar até ele e confirmar)
+  const activate = async (text) => {
+    const all = [...document.querySelectorAll('[data-focusable]')].filter((e) => e.offsetParent !== null);
+    const target = all.find((e) => e.textContent.indexOf(text) >= 0);
+    if (!target) throw new Error('elemento não encontrado: ' + text);
+    target.click();
+    await sleep(120);
+  };
+  const until = async (fn, ms = 25000) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (fn()) return true;
+      await sleep(100);
+    }
+    return false;
+  };
+  return { press, sleep, focused, screen, dialog, type, activate, until };
+})();

@@ -9,6 +9,7 @@
 // para conferir o visual use o preview local: npm run preview
 //   node scripts/tv.mjs logs [segundos]       mostra console/erros da página por N segundos
 //   node scripts/tv.mjs mem                   uso de heap JS + contagem de nós do DOM
+//   node scripts/tv.mjs run <roteiro.js>      roteiro e2e (scripts/e2e); variáveis E2E_X viram window.__X__
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -101,6 +102,18 @@ if (cmd === 'debug') {
         await sleep(Number(process.env.KEY_DELAY || 250));
       }
       console.log('teclas enviadas:', rest.join(' '));
+    } else if (cmd === 'run') {
+      // roteiro e2e: injeta helpers.js e avalia o arquivo (que retorna uma Promise de verificações)
+      const vars = Object.entries(process.env).filter(([k]) => k.startsWith('E2E_'))
+        .map(([k, v]) => `window.__${k.slice(4)}__=${JSON.stringify(v)};`).join('');
+      const code = vars + readFileSync(join(ROOT, 'scripts/e2e/helpers.js'), 'utf8') + ';' + readFileSync(rest[0], 'utf8') + ';window.__E2E__';
+      const r = await cdp.send('Runtime.evaluate', { expression: code, returnByValue: true, awaitPromise: true }, 180000);
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      const checks = r.result.value || [];
+      for (const c of checks) console.log(c.ok ? 'PASSOU' : 'FALHOU', '-', c.step, c.ok ? '' : '→ ' + JSON.stringify(c.got));
+      const failed = checks.filter((c) => !c.ok).length;
+      console.log(`${checks.length - failed}/${checks.length} verificações passaram`);
+      if (failed) process.exitCode = 1;
     } else if (cmd === 'logs') {
       await cdp.send('Runtime.enable');
       cdp.on((m) => {
