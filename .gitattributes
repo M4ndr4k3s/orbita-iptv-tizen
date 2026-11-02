@@ -1,2 +1,6 @@
+# fim de linha LF no repositório (o projeto é editado no Windows)
 * text=auto eol=lf
 *.png binary
+*.jpg binary
+*.wgt binary
+*.p12 binary

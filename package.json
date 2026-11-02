@@ -2,7 +2,20 @@
   "name": "orbita-tv",
   "version": "1.1.2",
   "private": true,
-  "description": "Órbita — player IPTV para Samsung Smart TV (Tizen)",
+  "description": "Órbita — player IPTV para Samsung Smart TV (Tizen 6+): M3U, Xtream Codes, EPG, filmes e séries, gravação no pendrive",
+  "license": "GPL-3.0-or-later",
+  "author": "M4ndr4k3s",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/M4ndr4k3s/orbita-iptv-tizen.git"
+  },
+  "homepage": "https://github.com/M4ndr4k3s/orbita-iptv-tizen#readme",
+  "bugs": {
+    "url": "https://github.com/M4ndr4k3s/orbita-iptv-tizen/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
