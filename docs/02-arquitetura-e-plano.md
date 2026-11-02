@@ -96,7 +96,7 @@ UI (ImportService) ──postMessage──▶ Web Worker (import.worker.ts)
 | 8 | VOD Xtream | Filmes, séries, temporadas/episódios, capas, sinopse, retomada, recentes |
 | 9 | Faixas e ajustes | Áudio, legendas, proporção, configurações de reprodução |
 | 10 | Parental + idioma + backup | PIN, bloqueio de categorias, pt-BR/en/es, export/import de configuração |
-| 11 | Busca global + telas restantes | Busca em canais/VOD/EPG; Sobre; perfis |
+| 11 | Busca global + telas restantes | Busca em canais/VOD/EPG; Sobre; perfis | — busca e Sobre entregues; **perfis pendentes** (exigem separar favoritos/histórico/retomada por perfil: decisão de produto)
 | 12 | Testes de estabilidade e release | Sessão longa de zapping, memória monitorada, `.wgt` final documentado |
 
 Cada marco: testes unitários do que for lógica + validação real na TV, registrada em `docs/testes.md`.
