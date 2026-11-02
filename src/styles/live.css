@@ -61,7 +61,7 @@
   position: relative;
   width: 100%;
   height: 352px; /* ~16:9 na largura do painel (≈628 px) */
-  border-radius: var(--r-lg);
+  border-radius: 0; /* quadrada: o vídeo do AVPlay é retangular e cantos redondos não o recortam */
   background: var(--c-bg-2);
   border: 1px solid var(--c-border);
   display: flex;
@@ -154,7 +154,7 @@
 
 /* ── grade de cartazes (Filmes/Séries) ── */
 .vod .vl-cats { width: 340px; }
-.vl-grid { width: 832px; padding: 0 6px; }
+.vl-grid { width: 1236px; padding: 0 6px; } /* 6 cartazes de 204 px */
 .vl-grid .vl-cell { left: auto; right: auto; padding: 10px 8px 0; flex-direction: column; align-items: stretch; border-radius: var(--r-md); white-space: normal; }
 .vg-frame {
   position: relative;
@@ -178,3 +178,15 @@
 .vp-poster-box.small { height: 260px; }
 .live-head-actions { display: flex; }
 .live-head-actions .btn { margin-left: var(--sp-2); }
+
+/* ── detalhes do filme (OK no cartaz) ── */
+.movie-detail { display: flex; align-items: flex-start; padding-top: var(--sp-8); }
+.md-poster-box { width: 400px; height: 600px; flex: none; margin-right: var(--sp-6); border-radius: var(--r-md); overflow: hidden; background: var(--c-bg-2); }
+.md-poster { width: 100%; height: 100%; object-fit: cover; display: block; }
+.md-info { flex: 1; min-width: 0; max-width: 1100px; }
+.md-title { margin-bottom: var(--sp-1); }
+.md-meta { font-size: var(--fs-md); }
+.md-actions { display: flex; margin: var(--sp-4) 0; }
+.md-actions .btn { margin-right: var(--sp-2); }
+.md-plot { font-size: var(--fs-sm); line-height: 1.5; color: var(--c-text-2); display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+.md-extra p { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--c-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

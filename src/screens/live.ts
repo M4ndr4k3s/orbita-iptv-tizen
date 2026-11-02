@@ -486,6 +486,12 @@ export class LiveScreen implements Screen {
     const other = !!cur && (!sel || channelKey(sel) !== channelKey(cur));
     this.pvName.textContent = other && cur ? (cur.num ? cur.num + '  ' : '') + cur.name : '';
     this.pvName.classList.toggle('hidden', !other);
+    // logo do canal da janela enquanto o vídeo não aparece (conectando); tocando, some
+    const logo = !live && cur && cur.logo ? cur.logo : '';
+    if (logo) {
+      if (this.panelLogo.getAttribute('src') !== logo) this.panelLogo.src = logo;
+      this.panelLogo.classList.remove('hidden');
+    } else this.panelLogo.classList.add('hidden');
   }
 
   private loadEpg(ch: Channel | null): void {
@@ -565,7 +571,6 @@ export class LiveScreen implements Screen {
       this.panelName.textContent = '';
       this.panelGroup.textContent = '';
       this.panelState.textContent = '';
-      this.panelLogo.classList.add('hidden');
       return;
     }
     this.panelNum.textContent = ch.num ? String(ch.num) : '';
@@ -578,10 +583,7 @@ export class LiveScreen implements Screen {
     if (this.ctx.library.isFavorite(this.source!.id, ch)) {
       this.panelState.appendChild(el('span', { class: 'lp-tag fav' }, [icon('favorites', 'icon'), el('span', { text: t('live.cat.fav') })]));
     }
-    if (ch.logo && withLogo) {
-      this.panelLogo.classList.remove('hidden');
-      if (this.panelLogo.getAttribute('src') !== ch.logo) this.panelLogo.src = ch.logo;
-    } else this.panelLogo.classList.add('hidden');
+    // o logo fica dentro da mini janela: é do canal da janela, não do cursor (paintPreview)
   }
 }
 

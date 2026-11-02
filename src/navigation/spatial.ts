@@ -21,8 +21,11 @@ function gap(aStart: number, aEnd: number, bStart: number, bEnd: number): number
   return 0; // faixas se sobrepõem
 }
 
-/** Retorna o índice do melhor candidato, ou -1 se nenhum estiver na direção. */
-export function pickNext(from: Rect, candidates: Rect[], dir: Direction): number {
+/**
+ * Retorna o índice do melhor candidato, ou -1 se nenhum estiver na direção.
+ * allowDiagonal: ↑/↓ aceita quem não está na mesma coluna (só cabeçalho <-> conteúdo).
+ */
+export function pickNext(from: Rect, candidates: Rect[], dir: Direction, allowDiagonal = false): number {
   const fr = from.left + from.width;
   const fb = from.top + from.height;
   let best = -1;
@@ -53,6 +56,9 @@ export function pickNext(from: Rect, candidates: Rect[], dir: Direction): number
         cross = gap(from.left, fr, c.left, cr);
     }
     if (main < -OVERLAP_TOLERANCE) continue; // está atrás ou sobreposto demais
+    // ↑/↓ só vai para quem está na mesma coluna: sem isso, na última linha de uma
+    // lista o ↓ pulava para o menu lateral (parecia que o ← tinha sido apertado)
+    if (!allowDiagonal && (dir === 'up' || dir === 'down') && cross > 0) continue;
     const score = Math.max(main, 0) + cross * CROSS_WEIGHT;
     if (score < bestScore) {
       bestScore = score;

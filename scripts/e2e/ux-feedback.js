@@ -65,7 +65,15 @@ window.__E2E__ = (async () => {
   const recOn = !q('.osd-rec').classList.contains('hidden');
   metrics.gravar = recOn ? 'gravando' : txt('.toast') || 'sem aviso';
   check('Gravar sem pendrive avisa; com pendrive mostra REC', recOn ? /Parar/.test(txt('.osd-btn.sel')) : /pendrive|HLS/.test(metrics.gravar), metrics.gravar);
-  if (recOn) { press('ok'); await sleep(1500); }
+  if (recOn) {
+    await sleep(8000); // grava uns segundos (o OSD some sozinho nesse meio tempo)
+    if (!q('.osd.bar-mode')) { press('ok'); await sleep(400); } // 1º OK só reabre os botões
+    metrics.botaoAntesDeParar = txt('.osd-btn.sel');
+    press('ok'); await sleep(2500);
+    metrics.gravacaoParada = [...document.querySelectorAll('.toast')].map((e) => e.textContent).join(' | ');
+    check('Parar gravação salva o arquivo', /Gravação salva/.test(metrics.gravacaoParada), metrics.gravacaoParada);
+  }
+  if (!q('.osd.bar-mode') || !P().osdVisible) { press('ok'); await sleep(400); } // OSD sumiu: reabre
   press('right'); await sleep(200);
   check('→ vai para Opções', /Opções/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
   press('ok'); await sleep(400);
@@ -84,7 +92,7 @@ window.__E2E__ = (async () => {
   await activate('Filmes');
   await until(() => q('.vl-grid .vl-cell .vg-name') && txt('.vl-grid .vl-cell.sel .vg-name'), 30000);
   const cells = [...document.querySelectorAll('.vl-grid .vl-cell')].filter((c) => !c.classList.contains('hidden'));
-  check('Filmes em grade (4 por linha, 8 células, cartaz 2:3)', document.querySelectorAll('.vl-grid .vl-cell').length === 8 && Math.abs(q('.vl-grid .vg-frame').getBoundingClientRect().height / q('.vl-grid .vg-frame').getBoundingClientRect().width - 1.5) < 0.05 && cells.length > 4, cells.length);
+  check('Filmes em grade (6 por linha, 12 células, cartaz 2:3, sem painel lateral)', !q('.vod-panel') && document.querySelectorAll('.vl-grid .vl-cell').length === 12 && Math.abs(q('.vl-grid .vg-frame').getBoundingClientRect().height / q('.vl-grid .vg-frame').getBoundingClientRect().width - 1.5) < 0.05 && cells.length > 4, cells.length);
   const first = txt('.vl-grid .vl-cell.sel .vg-name');
   press('right'); await sleep(250);
   const second = txt('.vl-grid .vl-cell.sel .vg-name');
@@ -100,6 +108,13 @@ window.__E2E__ = (async () => {
   metrics.cartazesCarregados = posters;
   check('cartazes carregam depois de rolar', posters > 0, posters);
 
+  // ── detalhes do filme (OK no cartaz) ──
+  const gridName = txt('.vl-grid .vl-cell.sel .vg-name');
+  press('ok');
+  await until(() => q('.movie-detail .md-actions .btn'), 10000);
+  check('OK no cartaz abre os detalhes', txt('.movie-detail .md-title') === gridName && /Assistir|Continuar de/.test(txt('.md-actions .btn.is-focused')), [gridName, txt('.movie-detail .md-title'), txt('.md-actions .btn.is-focused')]);
+  await until(() => !/Carregando/.test(txt('.md-plot')), 15000).catch(() => {});
+  metrics.detalhes = txt('.md-meta') + ' | sinopse ' + txt('.md-plot').length + ' letras';
   // ── filme: botões na tela ──
   press('ok');
   await until(() => (V() && V().session.status === 'playing') || /Continuar assistindo/.test(dialog() || ''), 40000);

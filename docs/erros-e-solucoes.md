@@ -77,3 +77,14 @@
 - **Medido na TV:** `FileHandle.writeData` (também a versão não bloqueante) grava ~0,65 MB/s, e a bloqueante trava a interface por ~1,6 s a cada 1 MB. `writeBlob` falha (a TV tenta carregar o blob por XHR).
 - **Solução:** API de Download nativa (`tizen.download`, privilégio `http://tizen.org/privilege/download`): 9,2 MB/s, fora da thread da interface. Para gravar canal ao vivo, o app "baixa" o stream TS sem fim, e parar = `cancel()`. Conferido na TV: o cancelamento mantém o arquivo parcial.
 - **Limites:** só stream TS (canais Xtream gravam pela URL `.ts` mesmo se assistidos em HLS; M3U só com HLS não grava); até 3 trabalhos ao mesmo tempo; tudo para se o app fechar. Muitos provedores limitam conexões: gravar um canal e assistir outro usa 2.
+
+## Gravar não funcionava com pendrive conectado
+
+- **Causa 1:** a API de Download recusa a raiz virtual do pendrive (`removable_sda1` → `InvalidValuesError`). Só aceita o caminho real, obtido com `tizen.filesystem.resolve('removable_sda1')`, que na UN50AU7700 é `/opt/media/USBDriveA1`.
+- **Causa 2:** depois de `tizen.download.cancel()` a TV não chama `oncanceled`, então o app ficava achando que ainda gravava. Agora o trabalho é marcado como parado logo após o cancel. O arquivo gravado fica no pendrive.
+- `createDirectory` dá `IOError` quando a pasta já existe; é tratado como sucesso.
+
+## ↑/↓ "apertava o ←" sozinho
+
+- **Causa:** a navegação espacial aceitava alvos na diagonal. Na última linha de uma lista ou da grade, o ↓ ia para o menu lateral ou para as categorias.
+- **Solução:** ↑/↓ só vai para alvos na mesma coluna. A única exceção é entre um botão do cabeçalho da tela e o conteúdo logo abaixo; nunca para o menu lateral.

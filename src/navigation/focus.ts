@@ -78,7 +78,19 @@ export class FocusManager {
     }
     const from = s.current;
     const all = this.focusables(s.root).filter((e) => e !== from);
-    const idx = pickNext(from.getBoundingClientRect(), all.map((e) => e.getBoundingClientRect()), dir);
+    const rects = all.map((e) => e.getBoundingClientRect());
+    let idx = pickNext(from.getBoundingClientRect(), rects, dir);
+    // botão no canto do cabeçalho <-> conteúdo da tela: aí a diagonal é o caminho
+    // natural (nunca para o menu lateral, que está em outra coluna da tela)
+    if (idx < 0 && (dir === 'up' || dir === 'down')) {
+      const inHead = (e: Element) => !!e.closest('.screen-head');
+      const fromHead = inHead(from);
+      const pool = all.map((_e, i) => i).filter((i) => !all[i].closest('.sidebar') && (fromHead ? !inHead(all[i]) : inHead(all[i])));
+      if (!from.closest('.sidebar') && pool.length) {
+        const j = pickNext(from.getBoundingClientRect(), pool.map((i) => rects[i]), dir, true);
+        if (j >= 0) idx = pool[j];
+      }
+    }
     if (idx < 0) return false;
     let target = all[idx];
     // entrando em outro grupo: prefere o item lembrado desse grupo

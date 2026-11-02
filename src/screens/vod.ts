@@ -15,10 +15,10 @@ import { idList, type ChannelList } from '../services/channelLists';
 import type { Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { streamUrl } from '../player/streamUrl';
-import { resume, resumeKey } from '../storage/resume';
-import { getVodInfo, fmtDuration, fmtTime, type VodDetails } from '../services/vodInfo';
+import { resumeKey } from '../storage/resume';
 import { VodPlayerScreen } from './vodPlayer';
 import { SeriesScreen } from './series';
+import { MovieDetailScreen } from './movieDetail';
 import { fmtInt } from '../services/format';
 import { t } from '../services/i18n';
 import { parental } from '../services/parental';
@@ -35,7 +35,8 @@ interface Cat {
 }
 
 const CAT_DEBOUNCE_MS = 250;
-const GRID_COLS = 4;
+// sem o painel lateral cabem 6 cartazes por linha (6 x 204 = 1224 px)
+const GRID_COLS = 6;
 const GRID_CELL_W = 204;
 // cartaz 2:3 (188x282) + duas linhas de título
 const GRID_ROW_H = 376;
@@ -51,19 +52,11 @@ export class VodScreen implements Screen {
   private list: ChannelList | null = null;
   private listCatId = '';
   private loadSeq = 0;
-  private infoSeq = 0;
   private scrolling = false;
   private catTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
-  private details: VodDetails | null = null;
   private unsubParental: (() => void) | null = null;
 
-  private poster!: HTMLImageElement;
-  private pName!: HTMLElement;
-  private pMeta!: HTMLElement;
-  private pGenre!: HTMLElement;
-  private pPlot!: HTMLElement;
-  private pResume!: HTMLElement;
 
   constructor(private ctx: AppContext, private kind: VodKind) {
     this.body = el('div', { class: 'live-body' });
@@ -107,11 +100,6 @@ export class VodScreen implements Screen {
     for (const tm of [this.catTimer, this.idleTimer]) if (tm) clearTimeout(tm);
   }
 
-  show(): void {
-    // voltou do player: atualiza o "continuar de"
-    if (this.items) this.paintPanel(this.items.item());
-  }
-
   onKey(key: RemoteKey): boolean {
     if (!this.cats) return false;
     const cur = focus.current;
@@ -151,7 +139,7 @@ export class VodScreen implements Screen {
       onSelect: () => void this.openCategory(),
     });
     this.items = new VirtualList<Channel>({
-      // grade de cartazes: 4 por linha, 2 linhas visíveis (só 8 células no DOM)
+      // grade de cartazes: 6 por linha, 2 linhas visíveis (só 12 células no DOM)
       rowHeight: GRID_ROW_H,
       visibleRows: 2,
       columns: GRID_COLS,
@@ -168,21 +156,8 @@ export class VodScreen implements Screen {
     const empty = this.items.root.querySelector('.vl-empty');
     if (empty) empty.textContent = t('vod.empty');
 
-    this.poster = el('img', { class: 'vp-poster', attrs: { alt: '' } });
-    this.poster.addEventListener('error', () => this.poster.classList.add('hidden'));
-    this.poster.addEventListener('load', () => this.poster.classList.remove('hidden'));
-    this.pName = el('div', { class: 'lp-name' });
-    this.pMeta = el('div', { class: 'vp-meta' });
-    this.pGenre = el('div', { class: 'lp-group' });
-    this.pPlot = el('p', { class: 'vp-plot' });
-    this.pResume = el('div', { class: 'vp-resume' });
-    // o cartaz já aparece na grade: o painel mostra só uma miniatura e os detalhes
-    const panel = el('div', { class: 'live-panel vod-panel' }, [
-      el('div', { class: 'vp-poster-box small' }, [this.poster]),
-      el('div', { class: 'vp-text' }, [this.pName, this.pMeta, this.pGenre, this.pResume, this.pPlot]),
-      el('p', { class: 'lp-hint', text: t(this.kind === 'movie' ? 'vod.hint.movie' : 'vod.hint.series') }),
-    ]);
-    this.body.appendChild(el('div', { class: 'live-cols' }, [this.cats.root, this.items.root, panel]));
+    // detalhes ficam numa tela própria (OK): a grade usa a largura toda
+    this.body.appendChild(el('div', { class: 'live-cols' }, [this.cats.root, this.items.root]));
   }
 
   private async loadCategories(total: number): Promise<void> {
@@ -216,40 +191,17 @@ export class VodScreen implements Screen {
   }
 
   private open(it: Channel): void {
-    const d = this.details;
-    openVodItem(this.ctx, this.source!, it, d && d.durationSec ? d.durationSec * 1000 : undefined);
+    openVodItem(this.ctx, this.source!, it);
   }
 
-  /** Rolando: só texto. Parou: pôster e detalhes do servidor. */
-  private onMove(it: Channel | null): void {
+  /** Rolando: os cartazes só carregam quando a grade para (decodificar a cada seta pesa na TV). */
+  private onMove(_it: Channel | null): void {
     this.scrolling = true;
-    this.details = null;
-    this.infoSeq++;
-    this.paintPanel(it, false);
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
       this.scrolling = false;
       this.items.refresh();
-      const cur = this.items.item();
-      this.paintPanel(cur, true);
-      if (cur) void this.loadDetails(cur);
     }, IDLE_MS);
-  }
-
-  private async loadDetails(it: Channel): Promise<void> {
-    const src = this.source!;
-    // detalhes só existem no Xtream (filmes; a série carrega os seus na própria tela)
-    if (src.kind !== 'xtream' || it.xid == null || this.kind !== 'movie') return;
-    const seq = ++this.infoSeq;
-    this.pPlot.textContent = t('vod.loading');
-    try {
-      const d = await getVodInfo({ server: src.server || '', username: src.username || '', password: src.password || '' }, it.xid);
-      if (seq !== this.infoSeq) return;
-      this.details = d;
-      this.paintPanel(it, true);
-    } catch {
-      if (seq === this.infoSeq) this.pPlot.textContent = '';
-    }
   }
 
   private renderItem(row: HTMLElement, it: Channel | null): void {
@@ -279,34 +231,6 @@ export class VodScreen implements Screen {
       else if (!this.scrolling) p.img.setAttribute('src', logo);
     }
   }
-
-  private paintPanel(it: Channel | null, full = true): void {
-    if (!it) {
-      for (const e of [this.pName, this.pMeta, this.pGenre, this.pPlot, this.pResume]) e.textContent = '';
-      this.poster.classList.add('hidden');
-      return;
-    }
-    const d = this.details;
-    this.pName.textContent = it.name;
-    const meta: string[] = [];
-    if (d && d.year) meta.push(d.year);
-    if (d && d.durationSec) meta.push(fmtDuration(d.durationSec));
-    const r = (d && d.rating) || it.rating;
-    if (r) meta.push(t('vod.rating', { r: r.toFixed(1) }));
-    this.pMeta.textContent = meta.join(' · ');
-    this.pGenre.textContent = (d && d.genre) || it.group;
-    this.pPlot.textContent = d ? d.plot || '' : '';
-    const at = this.kind === 'movie' ? resume.get(resumeKey(this.source!, it.kind, it)) : 0;
-    this.pResume.textContent = at ? t('vod.continueAt', { t: fmtTime(at) }) : '';
-    const img = (d && d.poster) || it.logo;
-    if (full && img) {
-      if (this.poster.getAttribute('src') !== img) {
-        this.poster.classList.add('hidden');
-        this.poster.src = img;
-      }
-    } else if (!full) this.poster.classList.add('hidden');
-    else this.poster.classList.add('hidden');
-  }
 }
 
 interface ItemParts {
@@ -315,10 +239,14 @@ interface ItemParts {
   rating: HTMLElement;
 }
 
-/** Abre um filme (player) ou uma série (temporadas). Usado também pela busca global. */
-export function openVodItem(ctx: AppContext, src: Source, it: Channel, durationMs?: number): void {
+/** Abre um filme (detalhes) ou uma série (temporadas). Usado também pela busca global. */
+export function openVodItem(ctx: AppContext, src: Source, it: Channel): void {
   if (it.kind === 'series' && it.xid != null && src.kind === 'xtream') {
     ctx.push(new SeriesScreen(ctx, src, it));
+    return;
+  }
+  if (it.kind === 'movie') {
+    ctx.push(new MovieDetailScreen(ctx, src, it));
     return;
   }
   const url = streamUrl(it, src);
@@ -329,7 +257,6 @@ export function openVodItem(ctx: AppContext, src: Source, it: Channel, durationM
       subtitle: it.group,
       url,
       key: resumeKey(src, it.kind, it),
-      durationMs,
     }),
   );
 }

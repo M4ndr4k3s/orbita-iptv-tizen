@@ -34,6 +34,13 @@ describe('pickNext', () => {
     expect(pickNext(menuItem, rows, 'right')).toBe(1);
   });
 
+  it('↑/↓ não pula na diagonal para outra coluna (ex.: menu lateral)', () => {
+    const lastRow = { left: 400, top: 900, width: 1200, height: 80 };
+    const sidebarBelow = { left: 0, top: 960, width: 300, height: 60 };
+    expect(pickNext(lastRow, [sidebarBelow], 'down')).toBe(-1);
+    const sidebarAbove = { left: 0, top: 100, width: 300, height: 60 };
+    expect(pickNext(lastRow, [sidebarAbove], 'up')).toBe(-1);
+  });
   it('ignora candidatos atrás da origem', () => {
     expect(pickNext(r(200, 0), [r(0, 0), r(400, 0)], 'right')).toBe(1);
   });

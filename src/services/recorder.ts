@@ -1,6 +1,6 @@
 // Downloads de filmes/episódios e gravação de canais ao vivo no pendrive.
 // Usa a API de Download nativa do Tizen: o sistema grava direto no disco
-// (9 MB/s medidos na TV). Escrever pelo JS (FileHandle.writeData) ficou em
+// (9 MB/s medidos na TV), no caminho real do pendrive. Escrever pelo JS (FileHandle.writeData) ficou em
 // ~0,65 MB/s e travava a interface. Gravar = baixar o stream TS sem fim;
 // parar = cancelar, e o cancelamento mantém o que já foi gravado (conferido na TV).
 
@@ -44,6 +44,7 @@ interface TizenLike {
   filesystem: {
     listStorages(ok: (s: Array<{ label: string; type: string; state: string }>) => void, err?: (e: Error) => void): void;
     createDirectory?(path: string, makeParents?: boolean, ok?: () => void, err?: (e: Error) => void): void;
+    resolve(location: string, ok: (dir: { fullPath: string }) => void, err?: (e: Error) => void, mode?: string): void;
     deleteFile?(path: string, ok?: () => void, err?: (e: Error) => void): void;
   };
 }
@@ -107,13 +108,18 @@ class RecorderService {
     };
   }
 
-  /** Primeiro pendrive montado (raiz virtual, ex.: "removable_sda1"). */
+  /**
+   * Caminho real do primeiro pendrive montado (ex.: /opt/media/USBDriveA1).
+   * A API de Download recusa o nome virtual ("removable_sda1": InvalidValuesError,
+   * visto na TV); com o caminho real grava normalmente.
+   */
   usbRoot(): Promise<string | null> {
     const t = tz();
     if (!t) return Promise.resolve(null);
-    return new Promise((resolve) => {
+    const fs = t.filesystem;
+    return new Promise<string | null>((resolve) => {
       try {
-        t.filesystem.listStorages(
+        fs.listStorages(
           (list) => {
             const usb = list.find((s) => s.type === 'EXTERNAL' && s.state === 'MOUNTED');
             resolve(usb ? usb.label : null);
@@ -123,7 +129,17 @@ class RecorderService {
       } catch {
         resolve(null);
       }
-    });
+    }).then(
+      (label) =>
+        label &&
+        new Promise<string | null>((resolve) => {
+          try {
+            fs.resolve(label, (d) => resolve(d && d.fullPath ? d.fullPath : null), () => resolve(null), 'rw');
+          } catch {
+            resolve(null);
+          }
+        }),
+    );
   }
 
   async start(kind: JobKind, key: string, title: string, url: string): Promise<{ ok: true; job: Job } | { ok: false; error: StartError }> {
@@ -175,8 +191,10 @@ class RecorderService {
     try {
       t.download.cancel(nid);
     } catch {
-      this.finish(job, 'stopped');
+      /* já tinha parado */
     }
+    // a TV não chama oncanceled depois do cancel() (visto na UN50AU7700): marca aqui
+    this.finish(job, 'stopped');
   }
 
   private finish(job: Job, state: JobState, error?: string): void {
@@ -198,7 +216,7 @@ class RecorderService {
     }
   }
 
-  /** Pasta Orbita no pendrive; se não der para criar, grava na raiz. */
+  /** Pasta Orbita no pendrive (criar dá IOError se já existe: segue igual). */
   private ensureFolder(t: TizenLike, root: string): Promise<string> {
     const dir = root + '/' + FOLDER;
     const mk = t.filesystem.createDirectory;
