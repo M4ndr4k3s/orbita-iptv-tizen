@@ -1,6 +1,5 @@
 // Tela inicial no estilo dos apps de streaming: um destaque grande no topo e
-// carrosséis de cartazes (continuar assistindo, canais vistos, favoritos e os
-// adicionados recentemente) que andam sozinhos. Os atalhos para as seções
+// carrosséis de cartazes (continuar assistindo e os adicionados recentemente) que andam sozinhos. Os atalhos para as seções
 // saíram: o menu lateral já faz isso. Mostra o nome da lista, nunca o endereço.
 
 import { el, clear } from '../utils/dom';
@@ -17,7 +16,7 @@ import { VodPlayerScreen } from './vodPlayer';
 import { openVodItem } from './vod';
 import { toast } from '../components/toast';
 import { idList, snapshotList } from '../services/channelLists';
-import { channelFromSnapshot, type Channel, type SavedEntry } from '../playlist/model';
+import { uniqueTitles, type Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { streamUrl } from '../player/streamUrl';
 import { resume, type ResumeCard } from '../storage/resume';
@@ -105,27 +104,24 @@ export class HomeScreen implements Screen {
     if (src && src.import) {
       const gk = src.import.gk;
       const d = this.ctx.data;
-      const [history, favs, recentMovieIds, recentSeriesIds] = await Promise.all([
-        this.ctx.library.list('history', src.id).catch(() => [] as SavedEntry[]),
-        this.ctx.library.list('favorites', src.id).catch(() => [] as SavedEntry[]),
+      const [recentMovieIds, recentSeriesIds] = await Promise.all([
         d.call('vod.recent', gk, 'movie', parental.hiddenGroups('movie')).catch(() => [] as string[]),
         d.call('vod.recent', gk, 'series', parental.hiddenGroups('series')).catch(() => [] as string[]),
       ]);
       const [movies, series] = await Promise.all([
-        d.call('channels.getMany', recentMovieIds.slice(0, RAIL_MAX)),
-        d.call('channels.getMany', recentSeriesIds.slice(0, RAIL_MAX)),
+        // pega o dobro: sobra o suficiente depois de tirar os repetidos
+        d.call('channels.getMany', recentMovieIds.slice(0, RAIL_MAX * 2)),
+        d.call('channels.getMany', recentSeriesIds.slice(0, RAIL_MAX * 2)),
       ]);
       if (seq !== this.seq) return;
       const ok = (x: Channel | null): x is Channel => !!x;
-      const watching = resume.watching(src.id, RAIL_MAX);
+      const watching = uniqueTitles(resume.watching(src.id, RAIL_MAX * 2), (w) => w.card.n).slice(0, RAIL_MAX);
       if (watching.length) sections.push([t('home.rail.watching'), watching.map((w) => this.watchCard(src, w)), 'poster']);
-      const live = history.filter((h) => !parental.isBlocked('live', h.channel.group)).slice(0, RAIL_MAX);
-      if (live.length) sections.push([t('home.rail.recentLive'), live.map((_h, i) => this.liveCard(src, live, i)), 'square']);
-      const fav = favs.filter((h) => !parental.isBlocked('live', h.channel.group)).slice(0, RAIL_MAX);
-      if (fav.length) sections.push([t('home.rail.favorites'), fav.map((_h, i) => this.liveCard(src, fav, i)), 'square']);
-      const m = movies.filter(ok);
+      // o mesmo título vem mais de uma vez ([LEG], DUB, outra categoria): um cartão só
+      const uniq = (list: Array<Channel | null>) => uniqueTitles(list.filter(ok), (c) => c.name).slice(0, RAIL_MAX);
+      const m = uniq(movies);
       if (m.length) sections.push([t('home.rail.newMovies'), m.map((c) => this.vodCard(src, c)), 'poster']);
-      const s = series.filter(ok);
+      const s = uniq(series);
       if (s.length) sections.push([t('home.rail.newSeries'), s.map((c) => this.vodCard(src, c)), 'poster']);
       featured = m.filter((c) => !!c.logo).slice(0, 6);
     }
@@ -158,19 +154,6 @@ export class HomeScreen implements Screen {
         const url = streamUrl({ id: '', gk: '', order: 0, num: 0, q: '', group: '', name: c.n, kind: c.k === 'movie' ? 'movie' : 'series', xid: c.x, ext: c.e }, src);
         if (!url) return toast(t('player.fail.noUrl'), 'error');
         this.ctx.push(new VodPlayerScreen(this.ctx, { title: c.n, subtitle: c.d, url, key: w.key, card: c }));
-      },
-    };
-  }
-
-  private liveCard(src: Source, entries: SavedEntry[], i: number): RailCard {
-    const ch = entries[i].channel;
-    return {
-      title: ch.name,
-      sub: ch.num ? String(ch.num) : ch.group,
-      img: ch.logo,
-      onClick: () => {
-        const list = snapshotList(entries);
-        this.ctx.push(new PlayerScreen(this.ctx, src, channelFromSnapshot(ch), list, i));
       },
     };
   }

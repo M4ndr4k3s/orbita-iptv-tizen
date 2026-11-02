@@ -24,7 +24,8 @@ export interface SearchIndex {
 }
 
 /** Quantos "adicionados recentemente" guardar por tipo. */
-export const RECENT_MAX = 20;
+// 40: depois de tirar as versões repetidas ([LEG], DUB) ainda sobram ~20
+export const RECENT_MAX = 40;
 
 /** Mantém os RECENT_MAX maiores `added` (lista ordenada do mais novo ao mais velho). */
 export function trackRecent(list: Array<{ id: string; added: number }>, id: string, added: number, max = RECENT_MAX): void {

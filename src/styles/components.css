@@ -38,14 +38,15 @@
   width: 128px;
   padding: var(--safe-y) 0;
   z-index: 10;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.75));
+  background: var(--c-sidebar);
   border-right: 1px solid var(--c-border);
   overflow: hidden;
 }
 /* sem transição de largura: animar width refaz layout e pintura a cada quadro (medido: ~16 fps na TV) */
 .sidebar.expanded {
   width: 380px;
-  background: #0c0e22;
+  /* cor do tema: antes era um azul fixo que aparecia em todos os temas */
+  background: var(--c-sidebar-open);
 }
 .sb-brand { display: flex; align-items: center; height: 80px; padding-left: 32px; margin-bottom: var(--sp-6); }
 .sb-brand img { width: 64px; height: 64px; flex: none; }

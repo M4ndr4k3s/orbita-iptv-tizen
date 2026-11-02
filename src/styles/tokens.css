@@ -17,6 +17,9 @@
   /* texto sobre o destaque (fundo ciano pede texto escuro; vermelho/azul, branco) */
   --c-on-accent: #04121a;
   --c-on-accent-2: #0d3a48;
+  /* menu lateral fechado (sobre o fundo) e aberto (por cima do conteúdo) */
+  --c-sidebar: rgba(0, 0, 0, 0.85);
+  --c-sidebar-open: #0d0d0d;
   --c-danger: #ff5c7a;
   --c-ok: #3ee08f;
   --grad-brand: linear-gradient(135deg, #7c5cff 0%, #3dd6f5 100%);
@@ -64,6 +67,8 @@
   --c-on-accent: #ffffff;
   --c-on-accent-2: rgba(255, 255, 255, 0.78);
   --grad-brand: linear-gradient(135deg, #b20710 0%, #e50914 100%);
+  --c-sidebar: rgba(20, 20, 20, 0.92);
+  --c-sidebar-open: #1a1a1a;
 }
 :root[data-theme="navy"] {
   --c-bg: #0f171e;
@@ -76,4 +81,6 @@
   --c-on-accent: #ffffff;
   --c-on-accent-2: rgba(255, 255, 255, 0.8);
   --grad-brand: linear-gradient(135deg, #1a98ff 0%, #00a8e1 100%);
+  --c-sidebar: rgba(15, 23, 30, 0.92);
+  --c-sidebar-open: #131d26;
 }

@@ -30,8 +30,8 @@
   margin: var(--sp-3) 0;
   padding: 6px var(--sp-2);
   border-radius: 8px;
-  background: rgba(124, 92, 255, 0.18);
-  color: #b7a8ff;
+  background: rgba(var(--c-accent-rgb), 0.18);
+  color: var(--c-accent);
   font-size: var(--fs-sm);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -52,9 +52,11 @@
 .home-list-name { margin-top: var(--sp-3); color: var(--c-text-3); font-size: var(--fs-xs); }
 .home-rails { padding-bottom: var(--sp-8); }
 .prail { margin-top: var(--sp-6); }
-.prail-viewport { overflow: hidden; padding: 16px 0 24px; margin: -16px 0 -24px; }
+/* folga nas laterais: o cartão focado cresce (scale) e ganha o anel de foco; sem ela a
+   borda e a primeira letra do título eram cortadas no canto esquerdo */
+.prail-viewport { overflow: hidden; padding: 28px 32px 36px; margin: -28px -32px -36px; }
 .prail-track { display: flex; transition: transform 600ms ease-out; will-change: transform; }
-.prail-card { flex: none; margin-right: 24px; border-radius: var(--r-sm); transition: transform var(--t-fast); }
+.prail-card { flex: none; margin-right: 24px; border-radius: var(--r-sm); transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .prail-poster .prail-card { width: 180px; }
 .prail-wide .prail-card { width: 260px; }
 .prail-frame { position: relative; overflow: hidden; border-radius: var(--r-sm); background: var(--c-bg-2); display: flex; align-items: center; justify-content: center; }
@@ -67,8 +69,23 @@
 .prail-fill { height: 100%; background: var(--c-accent); }
 .prail-name { margin-top: 8px; font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prail-sub { font-size: var(--fs-xs); color: var(--c-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.2em; }
-.prail-card.is-focused { transform: scale(1.06); }
-.prail-card.is-focused .prail-frame { box-shadow: var(--focus-ring); }
+/* seleção: zoom maior + anel na cor do tema que pulsa. A animação mexe só em
+   transform/opacity (compositor da TV), nunca em sombra ou borda (repinta). */
+.prail-card.is-focused { transform: scale(1.12); position: relative; z-index: 2; }
+.prail-frame::after {
+  content: '';
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  border: 4px solid var(--c-accent);
+  border-radius: var(--r-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.prail-card.is-focused .prail-frame::after { opacity: 1; animation: prail-pulse 1.4s ease-in-out infinite; }
+@keyframes prail-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.97); }
+}
+.prail-card.is-focused .prail-name { color: var(--c-accent); }
 /* canais: cartão quadrado com o logo centralizado e inteiro (logos têm formatos variados) */
 .prail-square .prail-card { width: 200px; }
 .prail-square .prail-frame { height: 200px; }

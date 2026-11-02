@@ -1,5 +1,5 @@
 // Continuar assistindo: episódio visto vira um cartão só da série no Início, e o
-// clique abre as temporadas. Canais vistos em cartão quadrado.
+// clique abre as temporadas. Sem carrosséis de canais.
 window.__E2E__ = (async () => {
   const { press, sleep, activate, until, dialog } = T;
   const q=(s)=>document.querySelector(s); const txt=(s)=>(q(s)?q(s).textContent.trim():''); const all=(s)=>[...document.querySelectorAll(s)];
@@ -22,8 +22,7 @@ window.__E2E__ = (async () => {
   check('série aparece em Continuar assistindo', rail && rail.textContent.indexOf(serie) >= 0, rail && rail.textContent.slice(0,120));
   const cards = rail ? [...rail.querySelectorAll('.prail-card')].filter(c=>c.textContent.indexOf(serie)>=0) : [];
   check('uma vez só', cards.length === 1, cards.length);
-  const sq = all('.prail-square .prail-frame')[0];
-  check('canais em cartão quadrado', sq && Math.abs(sq.getBoundingClientRect().width - sq.getBoundingClientRect().height) < 2, sq && [sq.getBoundingClientRect().width, sq.getBoundingClientRect().height]);
+  check('sem carrosséis de canais no Início', !all('.prail .rail-title').some((e) => /Canais/.test(e.textContent)), all('.prail .rail-title').map((e) => e.textContent));
   if (cards[0]) { cards[0].click(); await sleep(3000); }
   check('clique abre a série (temporadas)', !!q('.screen.series') && txt('.screen.series .screen-title') === serie && !V(), [txt('.screen.series .screen-title'), !!V()]);
   await activate('Início');

@@ -99,6 +99,50 @@ export interface SavedEntry {
 
 const ACCENTS = /[̀-ͯ]/g;
 
+// etiquetas de versão que os servidores põem no nome do mesmo título
+// (aplicado depois de trocar pontuação por espaço: só palavras inteiras, nunca "hd" dentro de "shdw")
+const VERSION_TAGS = /(^| )(leg|legendado|dub|dublado|nacional|dual|audio|4k|uhd|fhd|hd|sd|hdr|cam|ts|hdcam|web dl)(?= |$)/g;
+
+/**
+ * Chave do título sem as etiquetas de versão: "Obsess [LEG] (2026)" e "Obsess (2026)"
+ * dão a mesma chave (o ano fica, para não juntar refilmagens).
+ */
+export function titleKey(name: string): string {
+  return searchKey(name)
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\((?!\d{4}\))[^)]*\)/g, ' ')
+    .replace(/[^a-z0-9()]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    // duas passadas: etiquetas vizinhas ("dual audio") dividem o espaço entre elas
+    .replace(VERSION_TAGS, '$1')
+    .replace(VERSION_TAGS, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** O nome tem alguma etiqueta de versão ([LEG], DUB...)? */
+export function hasVersionTag(name: string): boolean {
+  return titleKey(name) !== searchKey(name).replace(/[^a-z0-9()]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Tira títulos repetidos (mesma chave), mantendo a ordem da primeira aparição e,
+ * entre as versões, a sem etiqueta (dublada/original em vez de [LEG]).
+ */
+export function uniqueTitles<T>(items: T[], name: (x: T) => string): T[] {
+  const pos = new Map<string, number>();
+  const out: T[] = [];
+  for (const it of items) {
+    const k = titleKey(name(it));
+    const i = pos.get(k);
+    if (i == null) {
+      pos.set(k, out.length);
+      out.push(it);
+    } else if (hasVersionTag(name(out[i])) && !hasVersionTag(name(it))) out[i] = it;
+  }
+  return out;
+}
+
 /** Normaliza para busca: minúsculo, sem acentos, espaços simples. */
 export function searchKey(s: string): string {
   return s.normalize('NFD').replace(ACCENTS, '').toLowerCase().replace(/\s+/g, ' ').trim();

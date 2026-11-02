@@ -1,3 +1,4 @@
+import { titleKey, uniqueTitles } from '../src/playlist/model';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -199,5 +200,22 @@ describe('ResumeStore: Continuar assistindo', () => {
     const w = r.watching('src1');
     expect(w.map((x) => x.key)).toEqual(['e2', 'm']);
     expect(w[0].card.p).toBe(77);
+  });
+});
+
+describe('títulos repetidos nos carrosséis', () => {
+  it('versões [LEG]/DUB/4K viram o mesmo título; o ano separa refilmagens', () => {
+    expect(titleKey('Obsess [LEG] (2026)')).toBe(titleKey('Obsess (2026)'));
+    expect(titleKey('Dexter: Ressurreição [LEG] (2025)')).toBe(titleKey('Dexter: Ressurreição (2025)'));
+    expect(titleKey('Filme (DUBLADO) (2020)')).toBe(titleKey('Filme 4K (2020)'));
+    expect(titleKey('Duna (1984)')).not.toBe(titleKey('Duna (2021)'));
+    expect(titleKey('Filme Dual Audio (2020)')).toBe('filme (2020)');
+    // só palavra inteira: "Shdw" e "Legião" não perdem pedaços
+    expect(titleKey('Shdw (2020)')).toBe('shdw (2020)');
+    expect(titleKey('Legião (2010)')).toBe('legiao (2010)');
+  });
+  it('mantém a ordem e prefere a versão sem etiqueta', () => {
+    const l = ['A Ladra Solitária (2026)', 'A Ladra Solitária [LEG] (2026)', 'Uma História de Derry [LEG] (2026)', 'Uma História de Derry (2026)', 'Berlim (2023)'];
+    expect(uniqueTitles(l, (x) => x)).toEqual(['A Ladra Solitária (2026)', 'Uma História de Derry (2026)', 'Berlim (2023)']);
   });
 });

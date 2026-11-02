@@ -38,7 +38,20 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 ## Versão
 
-**1.1.0** em `package.json` e `tizen/config.xml` (tags `v1.0.0`, `v1.0.1` e `v1.1.0`). Atualize os dois juntos na próxima versão.
+**1.1.1** em `package.json` e `tizen/config.xml` (tags `v1.0.0`, `v1.0.1`, `v1.1.0` e `v1.1.1`). Atualize os dois juntos na próxima versão.
+
+### Pacote 1.1.1 (2026-11-02)
+
+- `dist/Orbita-1.1.1.wgt`, SHA-256 `5f72b5fcac3caad5ff779278681a65301ae92e24a3985b297d814164f34ed31c`.
+- **Início:**
+  - sem os carrosséis de canais (vistos e favoritos);
+  - sem títulos repetidos em nenhum carrossel ("X [LEG]" e "X" viram um cartão, ficando a versão sem etiqueta);
+  - cartão focado com zoom 1,12 e anel animado na cor do tema;
+  - borda e título do cartão no canto esquerdo não são mais cortados.
+- **Temas:** o menu lateral segue a cor do tema; antes era azul fixo.
+- **Importação:** guarda os 40 títulos mais novos de cada tipo, para sobrarem 20 depois de tirar as repetições. Pede uma atualização da lista.
+- **Checagens:** 0 credenciais no pacote e no repositório; 157 testes unitários; `npm audit` sem vulnerabilidades.
+- **Na TV:** home 10/10, home-clip 1/1, home-series 4/4, home-fx 3/3 (≥ 50 fps com a animação).
 
 ### Pacote 1.1.0 (2026-11-02)
 
