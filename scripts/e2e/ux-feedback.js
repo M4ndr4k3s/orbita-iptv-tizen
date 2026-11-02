@@ -13,7 +13,14 @@ window.__E2E__ = (async () => {
 
   // ── mini janela ──
   await activate('TV ao vivo');
+  await until(() => q('.vl-cats .vl-row .cat-label'), 20000);
+  // reabre na última categoria (pode ser o Histórico vazio): vai para "Todos"
+  press('left'); await sleep(200);
+  for (let i = 0; i < 20 && !/Todos os canais/.test(txt('.vl-cats .vl-row.sel')); i++) { press('down'); await sleep(80); }
+  press('ok');
   await until(() => txt('.vl-chans .vl-row.sel .cr-name'), 20000);
+  await sleep(300);
+  if (!q('.vl-chans.is-focused')) { press('right'); await sleep(200); }
   const r = q('.lp-video').getBoundingClientRect();
   metrics.janela = Math.round(r.width) + 'x' + Math.round(r.height);
   check('mini janela ~16:9 e bem maior que 408x300', r.width >= 600 && Math.abs(r.width / r.height - 16 / 9) < 0.08, metrics.janela);
@@ -34,8 +41,17 @@ window.__E2E__ = (async () => {
   await until(() => P() && ['playing', 'failed'].indexOf(P().session.status) >= 0, 30000);
   await sleep(1500);
   press('ok'); await sleep(300); // 1º OK: mostra o OSD e arma os botões (não abre nada)
-  check('OK mostra os botões na tela sem abrir nada', P().osdVisible && q('.osd.bar-mode') && !dialog() && document.querySelectorAll('.osd-btn').length === 3, [txt('.osd-bar'), dialog()]);
-  check('primeiro botão selecionado: Opções', /Opções/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
+  check('OK mostra os botões na tela sem abrir nada', P().osdVisible && q('.osd.bar-mode') && !dialog() && document.querySelectorAll('.osd-btn').length === 4, [txt('.osd-bar'), dialog()]);
+  check('primeiro botão selecionado: Pausar', /Pausar/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
+  const liveSt = P().session.status;
+  press('ok'); await sleep(800);
+  check('ao vivo: Pausar pausa e o botão vira Continuar', liveSt !== 'playing' || (P().session.status === 'paused' && /Continuar/.test(txt('.osd-btn.sel'))), [liveSt, P().session.status, txt('.osd-btn.sel')]);
+  press('ok'); await sleep(1500);
+  check('ao vivo: Continuar volta a tocar', liveSt !== 'playing' || ['playing', 'buffering'].indexOf(P().session.status) >= 0, P().session.status);
+  const prog = q('.player .vod-progress');
+  metrics.barraPrograma = prog && !prog.classList.contains('hidden') ? txt('.player .vod-progress') : 'sem guia';
+  press('right'); await sleep(200);
+  check('→ vai para Opções', /Opções/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
   press('ok'); await sleep(400);
   check('OK no botão abre as opções de reprodução', /Opções de reprodução/.test(dialog() || ''), dialog());
   press('back'); await sleep(300);
@@ -52,7 +68,7 @@ window.__E2E__ = (async () => {
   await activate('Filmes');
   await until(() => q('.vl-grid .vl-cell .vg-name') && txt('.vl-grid .vl-cell.sel .vg-name'), 30000);
   const cells = [...document.querySelectorAll('.vl-grid .vl-cell')].filter((c) => !c.classList.contains('hidden'));
-  check('Filmes em grade (4 por linha, 12 células)', document.querySelectorAll('.vl-grid .vl-cell').length === 12 && cells.length > 4, cells.length);
+  check('Filmes em grade (4 por linha, 8 células, cartaz 2:3)', document.querySelectorAll('.vl-grid .vl-cell').length === 8 && Math.abs(q('.vl-grid .vg-frame').getBoundingClientRect().height / q('.vl-grid .vg-frame').getBoundingClientRect().width - 1.5) < 0.05 && cells.length > 4, cells.length);
   const first = txt('.vl-grid .vl-cell.sel .vg-name');
   press('right'); await sleep(250);
   const second = txt('.vl-grid .vl-cell.sel .vg-name');

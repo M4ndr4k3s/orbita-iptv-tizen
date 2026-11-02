@@ -99,6 +99,20 @@ describe('PlaybackSession', () => {
     expect(s.state).toMatchObject({ status: 'retrying', error: 'timeout' });
   });
 
+  it('PLAYING sem o tempo andar não conta como imagem na tela (mini janela preta)', () => {
+    s.play('http://a/1.ts');
+    eng.emit({ type: 'playing' });
+    eng.emit({ type: 'time', ms: 9 });
+    expect(s.state).toMatchObject({ status: 'playing', progressing: false });
+    eng.emit({ type: 'time', ms: 200 });
+    expect(s.state.progressing).toBe(false);
+    eng.emit({ type: 'time', ms: 320 });
+    expect(s.state.progressing).toBe(true);
+    // nova abertura zera
+    s.play('http://a/2.ts');
+    expect(s.state.progressing).toBe(false);
+  });
+
   it('stream congelado (sem avanço de tempo) é queda e reconecta', () => {
     s.play('http://a/1.ts');
     eng.emit({ type: 'playing' });

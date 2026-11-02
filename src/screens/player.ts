@@ -36,6 +36,8 @@ export interface PlayerHandoff {
 }
 
 const OSD_MS = 5000;
+// pausa longa num canal ao vivo: o buffer do servidor já passou, então volta ao vivo reabrindo
+const LIVE_RESUME_MAX_MS = 60000;
 const ZAP_DEBOUNCE_MS = 350;
 const DIGIT_WAIT_MS = 1500;
 
@@ -63,6 +65,13 @@ export class PlayerScreen implements Screen {
   private osdName: HTMLElement;
   private osdGroup: HTMLElement;
   private osdEpg: HTMLElement;
+  /** barra do programa atual (início · progresso · fim), só com guia */
+  private progRow: HTMLElement;
+  private progStart: HTMLElement;
+  private progEnd: HTMLElement;
+  private progFill: HTMLElement;
+  private prog: { start: number; stop: number } | null = null;
+  private pausedAt = 0;
   private subs = new SubtitleView();
   private unsubSubs: (() => void) | null = null;
   private tracksDone = false;
@@ -100,12 +109,17 @@ export class PlayerScreen implements Screen {
     this.osdName = el('div', { class: 'osd-name' });
     this.osdGroup = el('div', { class: 'osd-group' });
     this.osdEpg = el('div', { class: 'osd-epg' });
+    this.progStart = el('div', { class: 'vod-time' });
+    this.progEnd = el('div', { class: 'vod-time' });
+    this.progFill = el('div', { class: 'vod-bar-fill' });
+    this.progRow = el('div', { class: 'vod-progress hidden' }, [this.progStart, el('div', { class: 'vod-bar' }, [this.progFill]), this.progEnd]);
     this.osdFav = icon('favorites', 'icon osd-fav hidden');
     this.osdLogo = el('img', { class: 'osd-logo', attrs: { alt: '' } });
     this.osdLogo.addEventListener('error', () => this.osdLogo.classList.add('hidden'));
     this.status = el('div', { class: 'osd-status' });
     // botões na tela: o mesmo que as teclas coloridas, sem precisar delas
     this.bar = new OsdBar([
+      { id: 'pause', label: t('osd.pause'), icon: 'pause', run: () => this.togglePause() },
       { id: 'options', label: t('osd.options'), icon: 'settings', run: () => void this.options() },
       { id: 'fav', label: t('osd.fav'), icon: 'favorites', run: () => void this.toggleFavorite() },
       { id: 'channels', label: t('osd.channels'), icon: 'lists', run: () => this.ctx.back() },
@@ -116,7 +130,7 @@ export class PlayerScreen implements Screen {
         el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav]), this.osdGroup]),
         this.osdEpg,
       ]),
-      el('div', { class: 'osd-bottom' }, [this.status, this.bar.root, el('div', { class: 'osd-hint', text: t('player.hint') })]),
+      el('div', { class: 'osd-bottom' }, [this.status, this.progRow, this.bar.root, el('div', { class: 'osd-hint', text: t('player.hint') })]),
     ]);
     this.numberBox = el('div', { class: 'osd-digits hidden' });
     this.errorBox = el('div', { class: 'player-error hidden' });
@@ -186,8 +200,7 @@ export class PlayerScreen implements Screen {
       case 'playPause':
       case 'play':
       case 'pause':
-        this.session.togglePause();
-        this.showOsd();
+        this.togglePause();
         return true;
       case 'stop':
         this.ctx.back();
@@ -206,6 +219,30 @@ export class PlayerScreen implements Screen {
       default:
         return false;
     }
+  }
+
+  private togglePause(): void {
+    const st = this.session.state.status;
+    if (st === 'paused' && Date.now() - this.pausedAt > LIVE_RESUME_MAX_MS) this.open(this.current, true);
+    else {
+      if (st === 'playing') this.pausedAt = Date.now();
+      this.session.togglePause();
+    }
+    this.showOsd();
+  }
+
+  /** Barra do programa no ar: posição de agora entre o início e o fim. */
+  private paintProgress(): void {
+    const p = this.prog;
+    const now = Date.now();
+    if (!p || now >= p.stop) {
+      this.progRow.classList.add('hidden');
+      return;
+    }
+    this.progStart.textContent = hhmm(p.start);
+    this.progEnd.textContent = hhmm(p.stop);
+    this.progFill.style.width = Math.max(0, Math.min(100, ((now - p.start) / (p.stop - p.start)) * 100)).toFixed(1) + '%';
+    this.progRow.classList.remove('hidden');
   }
 
   private async options(): Promise<void> {
@@ -342,13 +379,20 @@ export class PlayerScreen implements Screen {
   private paintEpg(ch: Channel): void {
     const seq = ++this.epgSeq;
     const src = this.ctx.sources.get(this.source.id) || this.source;
+    this.prog = null;
+    this.paintProgress();
     if (!src.epg) {
       clear(this.osdEpg);
       return;
     }
     void scheduleFor(this.ctx.data, src, ch, 2)
       .then((list) => {
-        if (seq === this.epgSeq) renderNowNext(this.osdEpg, list);
+        if (seq !== this.epgSeq) return;
+        renderNowNext(this.osdEpg, list);
+        const now = Date.now();
+        const cur = list.length && list[0].start <= now && list[0].stop > now ? list[0] : null;
+        this.prog = cur ? { start: cur.start, stop: cur.stop } : null;
+        this.paintProgress();
       })
       .catch(() => undefined);
   }
@@ -371,6 +415,7 @@ export class PlayerScreen implements Screen {
     else if (s.status === 'retrying') text = t('player.retrying', { a: s.attempt + 1, m: s.maxAttempts });
     this.status.textContent = text;
     this.status.classList.toggle('warn', s.status === 'retrying');
+    this.bar.setLabel('pause', t(s.status === 'paused' ? 'osd.play' : 'osd.pause'));
     // problemas mantêm o OSD visível; tocando normalmente ele some sozinho
     if (s.status === 'retrying' || s.status === 'paused') this.showOsd(true);
     if (s.status === 'failed') this.showError(failMessage(s.error || ''));
@@ -400,6 +445,7 @@ export class PlayerScreen implements Screen {
   private showOsd(sticky = false): void {
     // OSD reaparecendo: atualiza a barra de progresso do programa
     if (!this.osd.classList.contains('visible') && !this.pending) this.paintEpg(this.current);
+    else this.paintProgress();
     this.osd.classList.add('visible');
     if (this.osdTimer) clearTimeout(this.osdTimer);
     if (!sticky) this.osdTimer = setTimeout(() => this.hideOsd(), OSD_MS);
@@ -440,4 +486,10 @@ function failMessage(code: string): string {
   if (/INVALID_URI/i.test(code)) return t('player.fail.invalid');
   if (/CONNECTION|NETWORK|MEDIA_ERR_2/i.test(code)) return t('player.fail.connection');
   return t('player.fail.timeout');
+}
+
+const pad2 = (n: number) => (n < 10 ? '0' : '') + n;
+function hhmm(ms: number): string {
+  const d = new Date(ms);
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
 }

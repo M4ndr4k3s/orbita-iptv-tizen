@@ -37,7 +37,8 @@ interface Cat {
 const CAT_DEBOUNCE_MS = 250;
 const GRID_COLS = 4;
 const GRID_CELL_W = 204;
-const GRID_ROW_H = 268;
+// cartaz 2:3 (188x282) + duas linhas de título
+const GRID_ROW_H = 376;
 const IDLE_MS = 400;
 
 export class VodScreen implements Screen {
@@ -150,9 +151,9 @@ export class VodScreen implements Screen {
       onSelect: () => void this.openCategory(),
     });
     this.items = new VirtualList<Channel>({
-      // grade de cartazes: 4 por linha, 3 linhas visíveis (só 12 células no DOM)
+      // grade de cartazes: 4 por linha, 2 linhas visíveis (só 8 células no DOM)
       rowHeight: GRID_ROW_H,
-      visibleRows: 3,
+      visibleRows: 2,
       columns: GRID_COLS,
       cellWidth: GRID_CELL_W,
       className: 'vl-chans vl-vod vl-grid',

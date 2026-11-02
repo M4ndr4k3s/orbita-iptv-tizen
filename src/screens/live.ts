@@ -444,11 +444,12 @@ export class LiveScreen implements Screen {
   private paintPreview(st: SessionState | null): void {
     const cur = this.chans ? this.chans.item() : null;
     const mine = !!cur && !!this.preview && this.preview.key === channelKey(cur);
-    const live = mine && !!st && st.status === 'playing';
+    // só fica transparente quando o vídeo anda de verdade (PLAYING sem quadro = furo preto)
+    const live = mine && !!st && st.status === 'playing' && !!st.progressing;
     this.pvBox.classList.toggle('live', live);
     let text = '';
     if (mine && st) {
-      if (st.status === 'connecting' || st.status === 'buffering' || st.status === 'retrying') text = t('player.connecting');
+      if (st.status === 'connecting' || st.status === 'buffering' || st.status === 'retrying' || (st.status === 'playing' && !st.progressing)) text = t('player.connecting');
       else if (st.status === 'failed') text = t('live.previewFail');
     }
     this.pvStatus.textContent = text;

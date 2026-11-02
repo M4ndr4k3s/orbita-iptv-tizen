@@ -148,7 +148,7 @@
 .vl-grid .vl-cell { left: auto; right: auto; padding: 10px 8px 0; flex-direction: column; align-items: stretch; border-radius: var(--r-md); white-space: normal; }
 .vg-frame {
   position: relative;
-  height: 210px;
+  height: 282px; /* proporção padrão de cartaz, 2:3 */
   border-radius: var(--r-sm);
   background: var(--c-bg-2);
   overflow: hidden;
@@ -161,7 +161,7 @@
   font-size: var(--fs-xs);
 }
 .vg-rating:empty { display: none; }
-.vg-name { margin-top: 6px; font-size: var(--fs-xs); line-height: 1.2; height: 2.4em; overflow: hidden; text-align: center; }
+.vg-name { margin-top: 8px; font-size: var(--fs-sm); font-weight: 600; line-height: 1.25; height: 2.5em; overflow: hidden; text-align: center; }
 .vl-grid .vl-cell.sel { background: var(--c-surface-hi); }
 .vl-grid.is-focused .vl-cell.sel { background: var(--c-cyan); color: #04121a; }
 .vl-grid.vl .vl-row.loading::after { display: none; }

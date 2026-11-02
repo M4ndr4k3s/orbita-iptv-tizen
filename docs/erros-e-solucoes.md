@@ -62,3 +62,10 @@
 - **Sintoma:** o heap ficou cravado em 9,5 MB durante 100 trocas de canal.
 - **Causa:** no Chromium sem memória precisa habilitada, `performance.memory` é arredondado e só atualiza de tempos em tempos.
 - **Solução:** `node scripts/tv.mjs mem` agora força a coleta de lixo (`HeapProfiler.collectGarbage`) e lê `Performance.getMetrics` pelo CDP (`JSHeapUsedSize`, `Nodes`, `JSEventListeners`). Medido assim, sem a coleta aparecem milhares de nós que ainda iam ser coletados; com a coleta, os números ficam estáveis.
+
+## Mini janela preta na TV ao vivo
+
+- **Sintoma:** a mini janela ficava preta, embora o app achasse que estava tocando.
+- **Causa:** o AVPlay responde PLAYING e manda um primeiro tempo (ex.: 9 ms) e, em alguns canais, fica segundos sem desenhar quadro (o tempo não anda). A janela virava transparente no PLAYING e o furo mostrava o plano de vídeo vazio.
+- **Solução:** a sessão marca `progressing` quando o tempo do vídeo anda ≥ 300 ms. A janela só fica transparente com isso; antes mostra "Conectando…". Se o tempo nunca andar, o vigia de travamento (15 s) reabre o stream.
+- **Como diagnosticar:** `webapis.avplay.getCurrentTime()` duas vezes com intervalo, via `tv.mjs eval`. `Page.captureScreenshot` não responde na TV, então não há captura de tela.

@@ -6,6 +6,9 @@ import type { EngineEvent, PlayerEngine } from './engine';
 
 export type SessionStatus = 'idle' | 'connecting' | 'buffering' | 'playing' | 'paused' | 'retrying' | 'failed';
 
+// quanto o tempo do vídeo precisa andar para contar como "aparecendo na tela"
+const PROGRESS_MS = 300;
+
 export interface SessionState {
   status: SessionStatus;
   /** tentativa atual (1..maxAttempts) */
@@ -19,6 +22,11 @@ export interface SessionState {
   firstFrameMs?: number;
   /** VOD: posição atual em ms */
   positionMs: number;
+  /**
+   * o tempo do vídeo já andou depois do "playing". Na TV o AVPlay às vezes diz
+   * PLAYING e fica segundos sem desenhar quadro: a mini janela ficava preta.
+   */
+  progressing?: boolean;
 }
 
 export interface SessionOptions {
@@ -49,6 +57,8 @@ export class PlaybackSession {
   private hadFirstFrame = false;
   private startTimer: unknown = null;
   private stallTimer: unknown = null;
+  /** tempo do vídeo no primeiro evento depois de abrir (-1 = ainda não veio) */
+  private firstTimeMs = -1;
   private retryTimer: unknown = null;
   private listeners: Array<(s: SessionState) => void> = [];
   private subListeners: Array<(text: string, durationMs: number) => void> = [];
@@ -153,7 +163,8 @@ export class PlaybackSession {
     this.clearAll();
     this.engine.stop();
     this.openedAt = this.o.now();
-    this.set({ status: 'connecting', attempt, percent: 0, error: undefined });
+    this.firstTimeMs = -1;
+    this.set({ status: 'connecting', attempt, percent: 0, error: undefined, progressing: false });
     this.startTimer = this.o.setTimer(() => this.fail('timeout'), this.o.startTimeoutMs);
     // VOD que caiu no meio volta de onde estava, não do começo
     this.engine.open(this.url, this.o.live ? 0 : this.st.positionMs);
@@ -182,6 +193,10 @@ export class PlaybackSession {
         if (this.st.status === 'playing' || this.st.status === 'buffering') {
           if (this.st.status === 'buffering') this.set({ status: 'playing' });
           if (!this.o.live) this.st = { ...this.st, positionMs: e.ms };
+          if (!this.st.progressing) {
+            if (this.firstTimeMs < 0) this.firstTimeMs = e.ms;
+            else if (e.ms - this.firstTimeMs >= PROGRESS_MS) this.set({ progressing: true });
+          }
           this.armStall();
         }
         break;
