@@ -2,7 +2,7 @@
 
 Player IPTV para Samsung Smart TV (Tizen 6.0+). Toca listas M3U/M3U8, contas Xtream Codes e guias XMLTV fornecidos pelo próprio usuário. O app não traz conteúdo nenhum.
 
-**Versão 1.0.0.** Pacote: `npm run release` → `build/Orbita.wgt` (cópia em `dist/`, fora do Git). Instalação e checagens em [docs/release.md](docs/release.md).
+**Versão 1.0.1.** Pacote: `npm run release` → `build/Orbita.wgt` (cópia em `dist/`, fora do Git). Instalação e checagens em [docs/release.md](docs/release.md).
 
 ## Funcionalidades
 

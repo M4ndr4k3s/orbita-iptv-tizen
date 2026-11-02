@@ -38,7 +38,15 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 ## Versão
 
-**1.0.0** em `package.json` e `tizen/config.xml` (tag `v1.0.0`). Atualize os dois juntos na próxima versão.
+**1.0.1** em `package.json` e `tizen/config.xml` (tags `v1.0.0` e `v1.0.1`). Atualize os dois juntos na próxima versão.
+
+### Pacote 1.0.1 (2026-11-02)
+
+- `dist/Orbita-1.0.1.wgt`, SHA-256 `456fdc717cfed9f89c6e59089c444118365ac32e3660cc061174155e7d65e9eb`.
+- **Correções:** ↑/↓ pulando para o lado, Gravar com pendrive. **Novidades:** detalhes do filme em tela própria, grade 6×2, mini janela com cantos retos.
+- **Checagens no `.wgt`:** 0 credenciais, sem sourcemap, sem hooks de teste. 147 testes unitários.
+- **Na TV:** ux-feedback 31/31 e usb-download 5/5, com gravação e download reais no pendrive.
+- Instalado na UN50AU7700.
 
 ### Pacote 1.0.0 (2026-11-02)
 
@@ -55,7 +63,6 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 ## Pendências conhecidas
 
 - Perfis (marco 11) não implementados.
-- Gravação/download: falta o teste com um pendrive conectado.
 - Lista importada antes da busca global: a primeira busca de filmes/séries é lenta (~16 s) até a próxima atualização da lista.
 
 ## Privilégio de download (gravação/download no pendrive)
