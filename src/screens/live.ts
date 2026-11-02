@@ -65,6 +65,8 @@ export class LiveScreen implements Screen {
   private digits = '';
   private loadSeq = 0;
   private playingKey: string | null = null;
+  /** canal da mini janela: o último escolhido com OK (o cursor andando não troca) */
+  private pinned: Channel | null = null;
   private scrolling = false;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private unsub: Array<() => void> = [];
@@ -78,6 +80,7 @@ export class LiveScreen implements Screen {
   private subtitle!: HTMLElement;
   private pvBox!: HTMLElement;
   private pvStatus!: HTMLElement;
+  private pvName!: HTMLElement;
   private epgBox!: HTMLElement;
   private epgSeq = 0;
   private preview: LivePreview | null = null;
@@ -206,7 +209,7 @@ export class LiveScreen implements Screen {
       load: (s, n) => (this.list ? this.list.load(s, n) : Promise.resolve([])),
       onChange: (_i, ch) => this.onChannelMove(ch),
       onSelect: (i, ch) => {
-        if (ch) this.play(ch, i);
+        if (ch) this.choose(ch, i);
       },
     });
     this.chans.root.setAttribute('data-autofocus', '');
@@ -219,7 +222,8 @@ export class LiveScreen implements Screen {
     this.panelState = el('div', { class: 'lp-state' });
     this.digitBox = el('div', { class: 'osd-digits hidden' });
     this.pvStatus = el('div', { class: 'lp-pv-status' });
-    this.pvBox = el('div', { class: 'lp-video' }, [this.panelLogo, this.pvStatus]);
+    this.pvName = el('div', { class: 'lp-pv-name hidden' });
+    this.pvBox = el('div', { class: 'lp-video' }, [this.panelLogo, this.pvStatus, this.pvName]);
     this.epgBox = el('div', { class: this.guideMode ? 'lp-epg guide' : 'lp-epg' });
     const panel = el('div', { class: 'live-panel' }, [
       this.pvBox,
@@ -308,6 +312,28 @@ export class LiveScreen implements Screen {
     if (cat.kind !== 'search' && !cat.locked) settings.set({ lastLiveCat: cat.id });
   }
 
+  /** OK: põe o canal na mini janela; OK de novo no mesmo canal abre a tela cheia. */
+  private choose(ch: Channel, index: number): void {
+    const pv = this.preview;
+    if (!pv || (this.pinned && channelKey(this.pinned) === channelKey(ch))) {
+      this.play(ch, index);
+      return;
+    }
+    this.pin(ch);
+  }
+
+  private pin(ch: Channel): void {
+    if (!this.preview) return;
+    // categoria bloqueada: a mini janela também pede o PIN (como a tela cheia)
+    if (parental.isBlocked('live', ch.group)) {
+      void requirePin(t('parental.catBody', { name: ch.group })).then((ok) => ok && this.pin(ch));
+      return;
+    }
+    this.pinned = ch;
+    this.preview.want(channelKey(ch), streamUrl(ch, this.source!, liveFormatPref()));
+    this.paintPreview(this.preview.state());
+  }
+
   private play(ch: Channel, index: number): void {
     const src = this.source!;
     this.ctx.push(
@@ -319,6 +345,8 @@ export class LiveScreen implements Screen {
         index,
         (last, lastIndex) => {
           this.playingKey = channelKey(last);
+          // a janela fica com o último canal assistido em tela cheia
+          if (this.preview) this.pinned = last;
           // seleção acompanha o último canal assistido, se ainda for desta lista
           if (lastIndex >= 0 && lastIndex < this.chans.size) this.chans.select(lastIndex);
           this.chans.refresh();
@@ -429,20 +457,20 @@ export class LiveScreen implements Screen {
     this.scrolling = true;
     this.paintPanel(ch, false);
     if (this.idleTimer) clearTimeout(this.idleTimer);
-    if (this.preview) this.preview.cancel();
     this.idleTimer = setTimeout(() => {
       this.scrolling = false;
       this.chans.refresh();
       const cur = this.chans.item();
       this.paintPanel(cur, true);
       this.loadEpg(cur);
-      if (this.preview && cur && cur.name) this.preview.want(channelKey(cur), streamUrl(cur, this.source!, liveFormatPref()));
+      // a janela segue o último canal escolhido; só começa sozinha no primeiro canal da tela
+      if (this.preview && !this.pinned && cur && cur.name && !parental.isBlocked('live', cur.group)) this.pin(cur);
     }, LOGO_IDLE_MS);
   }
 
   /** Estado da mini janela: transparente só quando o vídeo do canal selecionado está na tela. */
   private paintPreview(st: SessionState | null): void {
-    const cur = this.chans ? this.chans.item() : null;
+    const cur = this.pinned;
     const mine = !!cur && !!this.preview && this.preview.key === channelKey(cur);
     // só fica transparente quando o vídeo anda de verdade (PLAYING sem quadro = furo preto)
     const live = mine && !!st && st.status === 'playing' && !!st.progressing;
@@ -453,6 +481,11 @@ export class LiveScreen implements Screen {
       else if (st.status === 'failed') text = t('live.previewFail');
     }
     this.pvStatus.textContent = text;
+    // legenda com o canal da janela quando o cursor está em outro
+    const sel = this.chans ? this.chans.item() : null;
+    const other = !!cur && (!sel || channelKey(sel) !== channelKey(cur));
+    this.pvName.textContent = other && cur ? (cur.num ? cur.num + '  ' : '') + cur.name : '';
+    this.pvName.classList.toggle('hidden', !other);
   }
 
   private loadEpg(ch: Channel | null): void {

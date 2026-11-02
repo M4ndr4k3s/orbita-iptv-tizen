@@ -148,7 +148,8 @@ export class PlaybackSession {
   }
 
   togglePause(): void {
-    if (this.st.status === 'playing') {
+    // logo depois de começar o vídeo costuma passar por "buffering": pausar ali também vale
+    if (this.st.status === 'playing' || this.st.status === 'buffering') {
       this.engine.pause();
       this.clear('stall');
       this.set({ status: 'paused' });

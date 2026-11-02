@@ -29,19 +29,27 @@ window.__E2E__ = (async () => {
   metrics.janelaTocandoMs = Date.now() - t0;
   check('mini janela toca o canal selecionado', !!q('.lp-video.live'), txt('.lp-pv-status'));
   const before = txt('.vl-chans .vl-row.sel .cr-name');
+  // cursor anda: a janela continua no canal escolhido, com a legenda dele
   press('down');
-  await sleep(200);
+  await sleep(2500);
+  // a legenda mostra o canal da janela (o primeiro escolhido), diferente do cursor
+  const cursorNow = txt('.vl-chans .vl-row.sel .cr-name');
+  check('mover o cursor não troca a janela (mostra a legenda do canal)', !!q('.lp-video.live') && !q('.lp-pv-name').classList.contains('hidden') && txt('.lp-pv-name').indexOf(cursorNow) < 0, [txt('.lp-pv-name'), cursorNow, before]);
+  // OK no outro canal: ele vai para a janela
+  press('ok');
   const t1 = Date.now();
-  await until(() => q('.lp-video.live') && txt('.vl-chans .vl-row.sel .cr-name') !== before, 30000);
-  await until(() => q('.lp-video.live'), 30000);
+  await sleep(300);
+  check('OK num canal novo não abre a tela cheia', !P(), null);
+  await until(() => q('.lp-video.live') && q('.lp-pv-name').classList.contains('hidden'), 30000);
   metrics.trocaJanelaMs = Date.now() - t1;
+  check('janela passa a tocar o canal escolhido', q('.lp-pv-name').classList.contains('hidden') && !!q('.lp-video.live'), txt('.lp-pv-name'));
 
-  // ── player: botões na tela ──
+  // ── player: botões na tela ── (OK de novo no canal da janela = tela cheia)
   press('ok');
   await until(() => P() && ['playing', 'failed'].indexOf(P().session.status) >= 0, 30000);
   await sleep(1500);
   press('ok'); await sleep(300); // 1º OK: mostra o OSD e arma os botões (não abre nada)
-  check('OK mostra os botões na tela sem abrir nada', P().osdVisible && q('.osd.bar-mode') && !dialog() && document.querySelectorAll('.osd-btn').length === 4, [txt('.osd-bar'), dialog()]);
+  check('OK mostra os botões na tela sem abrir nada', P().osdVisible && q('.osd.bar-mode') && !dialog() && document.querySelectorAll('.osd-btn').length === 5, [txt('.osd-bar'), dialog()]);
   check('primeiro botão selecionado: Pausar', /Pausar/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
   const liveSt = P().session.status;
   press('ok'); await sleep(800);
@@ -50,6 +58,14 @@ window.__E2E__ = (async () => {
   check('ao vivo: Continuar volta a tocar', liveSt !== 'playing' || ['playing', 'buffering'].indexOf(P().session.status) >= 0, P().session.status);
   const prog = q('.player .vod-progress');
   metrics.barraPrograma = prog && !prog.classList.contains('hidden') ? txt('.player .vod-progress') : 'sem guia';
+  press('right'); await sleep(200);
+  check('→ vai para Gravar', /Gravar/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
+  press('ok'); await sleep(1500);
+  // sem pendrive: avisa e não grava; com pendrive: grava e o botão vira Parar
+  const recOn = !q('.osd-rec').classList.contains('hidden');
+  metrics.gravar = recOn ? 'gravando' : txt('.toast') || 'sem aviso';
+  check('Gravar sem pendrive avisa; com pendrive mostra REC', recOn ? /Parar/.test(txt('.osd-btn.sel')) : /pendrive|HLS/.test(metrics.gravar), metrics.gravar);
+  if (recOn) { press('ok'); await sleep(1500); }
   press('right'); await sleep(200);
   check('→ vai para Opções', /Opções/.test(txt('.osd-btn.sel')), txt('.osd-btn.sel'));
   press('ok'); await sleep(400);

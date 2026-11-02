@@ -13,6 +13,7 @@
     <!-- backup da configuração no pendrive / Downloads (marco 10) -->
     <tizen:privilege name="http://tizen.org/privilege/filesystem.read"/>
     <tizen:privilege name="http://tizen.org/privilege/filesystem.write"/>
+    <tizen:privilege name="http://tizen.org/privilege/download"/>
     <tizen:profile name="tv-samsung"/>
     <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>

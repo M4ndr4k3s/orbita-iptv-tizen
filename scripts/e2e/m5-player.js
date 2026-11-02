@@ -76,7 +76,7 @@ window.__E2E__ = (async () => {
   check('Info alterna as informações', v1 !== P().osdVisible, [v1, P().osdVisible]);
 
   // pausa
-  if (status() === 'playing') {
+  if (status() === 'playing' || status() === 'buffering') {
     press('playPause'); await sleep(800);
     check('Play/Pause pausa', status() === 'paused', status());
     press('playPause'); await sleep(2500);

@@ -44,3 +44,7 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 - Perfis (marco 11) não implementados.
 - Lista importada antes da busca global: a primeira busca de filmes/séries é lenta (~16 s) até a próxima atualização da lista.
+
+## Privilégio de download (gravação/download no pendrive)
+
+O `config.xml` pede `http://tizen.org/privilege/download` (API de Download nativa). Instalação em modo desenvolvedor com o certificado LiteLauncher funcionou. Para publicar na loja, confira se o nível do certificado permite esse privilégio.

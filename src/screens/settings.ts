@@ -14,6 +14,7 @@ import { buildBackup, parseBackup, writeBackup, findBackup } from '../services/b
 import { t, LANGUAGES, type I18nKey } from '../services/i18n';
 import { ParentalCategoriesScreen } from './parentalCategories';
 import { confirmClearHistory } from '../components/dialog';
+import { RecordingsScreen } from './recordings';
 
 interface Row {
   id: string;
@@ -62,6 +63,7 @@ export class SettingsScreen implements Screen {
         value: !parental.hasPin() ? t('set.parental.off') : t('set.parental.on', { n: parental.lockedCount() }),
         run: () => this.parentalMenu(),
       },
+      { id: 'recordings', label: t('set.recordings'), value: t('set.recordings.hint'), run: async () => this.ctx.push(new RecordingsScreen()) },
       { id: 'history', label: t('set.history'), value: t('set.history.hint'), run: () => this.clearHistory() },
       { id: 'export', label: t('set.export'), value: t('set.export.hint'), run: () => this.exportBackup() },
       { id: 'import', label: t('set.import'), value: t('set.import.hint'), run: () => this.importBackup() },

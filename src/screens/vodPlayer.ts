@@ -16,6 +16,7 @@ import { fmtTime } from '../services/vodInfo';
 import { t } from '../services/i18n';
 import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
 import { OsdBar } from '../components/osdBar';
+import { startJob } from '../components/recordActions';
 import { applyEnginePrefs, applyTrackPrefs } from '../player/preferences';
 
 declare const __DEV__: boolean;
@@ -78,6 +79,7 @@ export class VodPlayerScreen implements Screen {
       { id: 'back10', label: t('osd.back10'), icon: 'rewind', run: () => this.nudge(-10000) },
       { id: 'fwd10', label: t('osd.fwd10'), icon: 'forward', run: () => this.nudge(10000) },
       { id: 'options', label: t('osd.options'), icon: 'settings', run: () => this.options() },
+      { id: 'download', label: t('osd.download'), icon: 'download', run: () => void startJob('download', this.item.key, this.item.title, this.item.url) },
     ]);
     this.osd = el('div', { class: 'osd vod-osd visible' }, [
       el('div', { class: 'osd-top' }, [

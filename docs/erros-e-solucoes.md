@@ -71,3 +71,9 @@
 - **Como diagnosticar:** `webapis.avplay.getCurrentTime()` duas vezes com intervalo, via `tv.mjs eval`. `Page.captureScreenshot` não responde na TV, então não há captura de tela.
 - **Causa real (confirmada olhando a TV):** o modo `PLAYER_DISPLAY_MODE_LETTER_BOX` não desenha nada num retângulo menor que a tela na UN50AU7700. Num teste com o app escondido e janela de 960×540, `FULL_SCREEN` e `AUTO_ASPECT_RATIO` mostraram a imagem e `LETTER_BOX` não.
 - **Solução definitiva:** com retângulo (mini janela), `displayBox` usa `AUTO_ASPECT_RATIO`; a tela cheia continua com `LETTER_BOX`, que lá funciona. A espera por `progressing` continua valendo para não mostrar o furo vazio enquanto conecta.
+
+## Gravação e download no pendrive: escrever pelo JS é lento demais
+
+- **Medido na TV:** `FileHandle.writeData` (também a versão não bloqueante) grava ~0,65 MB/s, e a bloqueante trava a interface por ~1,6 s a cada 1 MB. `writeBlob` falha (a TV tenta carregar o blob por XHR).
+- **Solução:** API de Download nativa (`tizen.download`, privilégio `http://tizen.org/privilege/download`): 9,2 MB/s, fora da thread da interface. Para gravar canal ao vivo, o app "baixa" o stream TS sem fim, e parar = `cancel()`. Conferido na TV: o cancelamento mantém o arquivo parcial.
+- **Limites:** só stream TS (canais Xtream gravam pela URL `.ts` mesmo se assistidos em HLS; M3U só com HLS não grava); até 3 trabalhos ao mesmo tempo; tudo para se o app fechar. Muitos provedores limitam conexões: gravar um canal e assistir outro usa 2.

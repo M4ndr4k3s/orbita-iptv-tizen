@@ -23,6 +23,9 @@ import { scheduleFor } from '../services/guide';
 import { renderNowNext } from '../components/epgInfo';
 import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
 import { OsdBar } from '../components/osdBar';
+import { recorder } from '../services/recorder';
+import { startJob } from '../components/recordActions';
+import { channelKey } from '../playlist/model';
 import { applyEnginePrefs, applyTrackPrefs, liveFormatPref } from '../player/preferences';
 
 declare const __DEV__: boolean;
@@ -74,6 +77,8 @@ export class PlayerScreen implements Screen {
   private pausedAt = 0;
   private subs = new SubtitleView();
   private unsubSubs: (() => void) | null = null;
+  private unsubRec: (() => void) | null = null;
+  private osdRec!: HTMLElement;
   private tracksDone = false;
   private epgSeq = 0;
   private osdFav: SVGSVGElement;
@@ -120,6 +125,7 @@ export class PlayerScreen implements Screen {
     // botões na tela: o mesmo que as teclas coloridas, sem precisar delas
     this.bar = new OsdBar([
       { id: 'pause', label: t('osd.pause'), icon: 'pause', run: () => this.togglePause() },
+      { id: 'rec', label: t('osd.record'), icon: 'record', run: () => void this.toggleRecord() },
       { id: 'options', label: t('osd.options'), icon: 'settings', run: () => void this.options() },
       { id: 'fav', label: t('osd.fav'), icon: 'favorites', run: () => void this.toggleFavorite() },
       { id: 'channels', label: t('osd.channels'), icon: 'lists', run: () => this.ctx.back() },
@@ -127,7 +133,7 @@ export class PlayerScreen implements Screen {
     this.osd = el('div', { class: 'osd' }, [
       el('div', { class: 'osd-top' }, [
         this.osdLogo,
-        el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav]), this.osdGroup]),
+        el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav, (this.osdRec = el('span', { class: 'osd-rec hidden', text: t('rec.badge') }))]), this.osdGroup]),
         this.osdEpg,
       ]),
       el('div', { class: 'osd-bottom' }, [this.status, this.progRow, this.bar.root, el('div', { class: 'osd-hint', text: t('player.hint') })]),
@@ -144,6 +150,7 @@ export class PlayerScreen implements Screen {
     document.addEventListener('visibilitychange', this.onVisibility);
     this.unsub = this.session.onChange((s) => this.render(s));
     this.unsubSubs = this.session.onSubtitle((txt, d) => this.subs.show(txt, d));
+    this.unsubRec = recorder.onChange(() => this.paintRec());
     applyEnginePrefs(this.engine);
     if (__DEV__) (window as unknown as Record<string, unknown>).__orbitaPlayer = () => this.debugState();
     this.engine.setRect(null);
@@ -154,6 +161,7 @@ export class PlayerScreen implements Screen {
     if (this.onExit) this.onExit(this.current, this.index);
     if (this.unsub) this.unsub();
     if (this.unsubSubs) this.unsubSubs();
+    if (this.unsubRec) this.unsubRec();
     this.subs.clear();
     // a TV ao vivo pega o stream de volta para a mini janela; senão, para
     if (this.handoff.keepAlive) this.handoff.keepAlive(this.session, this.current);
@@ -219,6 +227,23 @@ export class PlayerScreen implements Screen {
       default:
         return false;
     }
+  }
+
+  /** Grava o canal atual no pendrive (ou para a gravação dele). */
+  private async toggleRecord(): Promise<void> {
+    const key = channelKey(this.current);
+    const job = recorder.running(key);
+    if (job) recorder.stop(job.id);
+    // TS mesmo assistindo em HLS: gravação precisa de stream contínuo
+    else await startJob('record', key, this.current.name, streamUrl(this.current, this.source, 'ts'));
+    this.paintRec();
+    this.showOsd();
+  }
+
+  private paintRec(): void {
+    const on = !!recorder.running(channelKey(this.current));
+    this.osdRec.classList.toggle('hidden', !on);
+    this.bar.setLabel('rec', t(on ? 'osd.stopRecord' : 'osd.record'));
   }
 
   private togglePause(): void {
@@ -367,6 +392,7 @@ export class PlayerScreen implements Screen {
     this.osdFav.classList.toggle('hidden', !fav);
     this.bar.setLabel('fav', t(fav ? 'osd.unfav' : 'osd.fav'));
     this.osdGroup.textContent = ch.group;
+    this.paintRec();
     if (ch.logo) {
       this.osdLogo.classList.remove('hidden');
       this.osdLogo.src = ch.logo;

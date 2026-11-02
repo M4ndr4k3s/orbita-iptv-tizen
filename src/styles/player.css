@@ -35,7 +35,7 @@ body.playing #backdrop { display: none; }
   padding: var(--safe-y) var(--safe-x) 0;
   display: flex;
   align-items: flex-start;
-  background: linear-gradient(180deg, rgba(4, 5, 14, 0.85), rgba(4, 5, 14, 0));
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
 }
 .osd-logo { width: 160px; height: 96px; object-fit: contain; margin-right: var(--sp-4); background: rgba(255, 255, 255, 0.06); border-radius: var(--r-sm); }
 .osd-line { display: flex; align-items: baseline; }
@@ -50,7 +50,7 @@ body.playing #backdrop { display: none; }
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background: linear-gradient(0deg, rgba(4, 5, 14, 0.85), rgba(4, 5, 14, 0));
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
 }
 .osd-status { font-size: var(--fs-md); min-height: 40px; }
 .osd-status.warn { color: #ffc861; }
@@ -63,7 +63,7 @@ body.playing #backdrop { display: none; }
   min-width: 200px;
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-md);
-  background: rgba(4, 5, 14, 0.85);
+  background: rgba(0, 0, 0, 0.85);
   font-size: 96px;
   font-weight: 700;
   text-align: right;
@@ -128,3 +128,6 @@ body.playing #backdrop { display: none; }
 /* botões só ficam ativos depois do OK (o OSD também aparece sozinho) */
 .osd-bar { opacity: 0.55; }
 .osd.bar-mode .osd-bar { opacity: 1; }
+
+/* indicador de gravação no OSD ao vivo */
+.osd-rec { margin-left: var(--sp-2); padding: 2px 12px; border-radius: 6px; background: var(--c-danger); color: #fff; font-size: var(--fs-xs); font-weight: 700; }

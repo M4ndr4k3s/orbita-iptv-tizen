@@ -99,6 +99,17 @@ describe('PlaybackSession', () => {
     expect(s.state).toMatchObject({ status: 'retrying', error: 'timeout' });
   });
 
+  it('pausa também durante o buffering (logo depois de começar)', () => {
+    s.play('http://a/1.ts');
+    eng.emit({ type: 'playing' });
+    eng.emit({ type: 'buffering', percent: 40 });
+    expect(s.state.status).toBe('buffering');
+    s.togglePause();
+    expect(s.state.status).toBe('paused');
+    s.togglePause();
+    expect(s.state.status).toBe('playing');
+  });
+
   it('PLAYING sem o tempo andar não conta como imagem na tela (mini janela preta)', () => {
     s.play('http://a/1.ts');
     eng.emit({ type: 'playing' });

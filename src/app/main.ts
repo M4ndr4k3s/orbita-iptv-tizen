@@ -15,6 +15,7 @@ import { HomeScreen } from '../screens/home';
 import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
 import { SearchScreen } from '../screens/search';
+import { watchRecorder } from '../components/recordActions';
 import { ListsScreen } from '../screens/lists';
 import { LiveScreen } from '../screens/live';
 import { VodScreen } from '../screens/vod';
@@ -54,6 +55,7 @@ class App implements AppContext {
   constructor(host: HTMLElement, private keys: KeyRegistration, readonly sources: SourceService, readonly data: DataClient) {
     this.imports = new ImportService(sources, data, this.idle);
     this.library = new LibraryService(data);
+    watchRecorder();
     const screens = el('main', { class: 'screens' });
     this.sidebar = new Sidebar((id) => this.go(id));
     const shell = el('div', { class: 'shell' }, [this.sidebar.root, screens]);

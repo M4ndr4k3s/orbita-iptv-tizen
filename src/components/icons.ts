@@ -19,6 +19,8 @@ const PATHS = {
   rewind: 'M11 6 4 12l7 6zM20 6l-7 6 7 6z',
   forward: 'M13 6l7 6-7 6zM4 6l7 6-7 6z',
   lock: 'M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  record: 'M12 6a6 6 0 1 0 0 12a6 6 0 1 0 0-12',
 } as const;
 
 export type IconName = keyof typeof PATHS;

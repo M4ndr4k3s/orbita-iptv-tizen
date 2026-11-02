@@ -39,3 +39,12 @@
 .search-txt { min-width: 0; }
 .search-name { font-size: var(--fs-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .search-meta { font-size: var(--fs-sm); color: var(--c-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* gravações e downloads */
+.rec-row { justify-content: flex-start; }
+.rec-ic { width: 36px; height: 36px; margin-right: var(--sp-3); flex-shrink: 0; color: var(--c-text-2); }
+.rec-ic.live { color: var(--c-danger); fill: var(--c-danger); }
+.rec-txt { flex: 1; min-width: 0; }
+.rec-txt .set-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-dir { margin-left: 0; text-align: left; }
+.rec-note { margin-top: var(--sp-3); }

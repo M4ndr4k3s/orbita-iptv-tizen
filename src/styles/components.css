@@ -38,7 +38,7 @@
   width: 128px;
   padding: var(--safe-y) 0;
   z-index: 10;
-  background: linear-gradient(90deg, rgba(8, 9, 27, 0.92), rgba(8, 9, 27, 0.75));
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.75));
   border-right: 1px solid var(--c-border);
   overflow: hidden;
 }
@@ -106,7 +106,7 @@
   position: fixed;
   top: 0; right: 0; bottom: 0; left: 0;
   z-index: 100;
-  background: rgba(4, 5, 14, 0.72);
+  background: rgba(0, 0, 0, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;

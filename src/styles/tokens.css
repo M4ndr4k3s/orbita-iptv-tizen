@@ -1,13 +1,14 @@
 /* Tokens da marca Órbita. A interface é desenhada para viewport 1920x1080. */
 :root {
-  --c-bg: #08091b;
-  --c-bg-2: #10122a;
+  /* tema preto: fundo preto puro e superfícies em cinza neutro */
+  --c-bg: #000000;
+  --c-bg-2: #121212;
   --c-surface: rgba(255, 255, 255, 0.06);
   --c-surface-hi: rgba(255, 255, 255, 0.12);
   --c-border: rgba(255, 255, 255, 0.10);
   --c-text: #f2f3fa;
-  --c-text-2: #a9adc8;
-  --c-text-3: #6d7194;
+  --c-text-2: #b3b3b3;
+  --c-text-3: #737373;
   --c-violet: #7c5cff;
   --c-cyan: #3dd6f5;
   --c-accent: var(--c-cyan);
