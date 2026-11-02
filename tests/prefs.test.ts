@@ -9,6 +9,9 @@ describe('displayBox (proporção)', () => {
     expect(displayBox(null, 'auto')).toEqual({ x: 0, y: 0, w: 1920, h: 1080, method: 'PLAYER_DISPLAY_MODE_LETTER_BOX' });
     expect(displayBox(null, 'fill').method).toBe('PLAYER_DISPLAY_MODE_FULL_SCREEN');
   });
+  it('mini janela não usa LETTER_BOX (na TV ele não desenha num retângulo pequeno)', () => {
+    expect(displayBox({ x: 1196, y: 188, w: 628, h: 352 }, 'auto')).toEqual({ x: 1196, y: 188, w: 628, h: 352, method: 'PLAYER_DISPLAY_MODE_AUTO_ASPECT_RATIO' });
+  });
   it('4:3 vira caixa centralizada de 1440×1080', () => {
     expect(displayBox(null, '4:3')).toEqual({ x: 240, y: 0, w: 1440, h: 1080, method: 'PLAYER_DISPLAY_MODE_FULL_SCREEN' });
   });

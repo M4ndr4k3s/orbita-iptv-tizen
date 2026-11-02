@@ -384,7 +384,9 @@ export function displayBox(rect: VideoRect | null, mode: AspectMode): { x: numbe
   const round = (b: { x: number; y: number; w: number; h: number }, method: string) => ({
     x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), method,
   });
-  if (mode === 'auto') return round(r, 'PLAYER_DISPLAY_MODE_LETTER_BOX');
+  // LETTER_BOX num retângulo menor que a tela não desenha nada na UN50AU7700 (mini
+  // janela preta, conferido na TV); AUTO_ASPECT_RATIO mantém a proporção e aparece
+  if (mode === 'auto') return round(r, rect ? 'PLAYER_DISPLAY_MODE_AUTO_ASPECT_RATIO' : 'PLAYER_DISPLAY_MODE_LETTER_BOX');
   if (mode === 'fill') return round(r, 'PLAYER_DISPLAY_MODE_FULL_SCREEN');
   const ratio = mode === '4:3' ? 4 / 3 : 16 / 9;
   let w = r.w;

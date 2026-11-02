@@ -69,3 +69,5 @@
 - **Causa:** o AVPlay responde PLAYING e manda um primeiro tempo (ex.: 9 ms) e, em alguns canais, fica segundos sem desenhar quadro (o tempo não anda). A janela virava transparente no PLAYING e o furo mostrava o plano de vídeo vazio.
 - **Solução:** a sessão marca `progressing` quando o tempo do vídeo anda ≥ 300 ms. A janela só fica transparente com isso; antes mostra "Conectando…". Se o tempo nunca andar, o vigia de travamento (15 s) reabre o stream.
 - **Como diagnosticar:** `webapis.avplay.getCurrentTime()` duas vezes com intervalo, via `tv.mjs eval`. `Page.captureScreenshot` não responde na TV, então não há captura de tela.
+- **Causa real (confirmada olhando a TV):** o modo `PLAYER_DISPLAY_MODE_LETTER_BOX` não desenha nada num retângulo menor que a tela na UN50AU7700. Num teste com o app escondido e janela de 960×540, `FULL_SCREEN` e `AUTO_ASPECT_RATIO` mostraram a imagem e `LETTER_BOX` não.
+- **Solução definitiva:** com retângulo (mini janela), `displayBox` usa `AUTO_ASPECT_RATIO`; a tela cheia continua com `LETTER_BOX`, que lá funciona. A espera por `progressing` continua valendo para não mostrar o furo vazio enquanto conecta.
