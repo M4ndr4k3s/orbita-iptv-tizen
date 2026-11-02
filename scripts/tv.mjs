@@ -133,6 +133,14 @@ if (cmd === 'debug') {
       const r = await evaluate(cdp, `(() => { const m = performance.memory || {}; return {
         usedMB: +(m.usedJSHeapSize / 1048576).toFixed(1), totalMB: +(m.totalJSHeapSize / 1048576).toFixed(1),
         limitMB: +(m.jsHeapSizeLimit / 1048576).toFixed(1), domNodes: document.getElementsByTagName('*').length }; })()`);
+      // performance.memory é arredondado e atualiza pouco; o CDP dá o valor exato
+      await cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+      await cdp.send('Performance.enable');
+      const pm = await cdp.send('Performance.getMetrics');
+      const get = (n) => (pm.metrics.find((x) => x.name === n) || {}).value;
+      r.heapExactMB = +(get('JSHeapUsedSize') / 1048576).toFixed(2);
+      r.nodes = get('Nodes');
+      r.listeners = get('JSEventListeners');
       console.log(JSON.stringify(r));
     } else {
       console.log('comandos: debug | eval | key | logs | mem');

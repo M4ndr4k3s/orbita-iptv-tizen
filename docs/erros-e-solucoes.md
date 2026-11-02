@@ -56,3 +56,9 @@
   - os índices começam a ser montados quando a tela de busca abre;
   - montagens em andamento são compartilhadas por promessa.
 - **Resultado medido:** 1ª busca ~7,7 s (só o guia; filmes e séries em 0,4 s), e as seguintes em ~80 ms. Listas importadas antes disso usam a varredura lenta até a próxima atualização.
+
+## `performance.memory` não serve para medir vazamento na TV (marco 12)
+
+- **Sintoma:** o heap ficou cravado em 9,5 MB durante 100 trocas de canal.
+- **Causa:** no Chromium sem memória precisa habilitada, `performance.memory` é arredondado e só atualiza de tempos em tempos.
+- **Solução:** `node scripts/tv.mjs mem` agora força a coleta de lixo (`HeapProfiler.collectGarbage`) e lê `Performance.getMetrics` pelo CDP (`JSHeapUsedSize`, `Nodes`, `JSEventListeners`). Medido assim, sem a coleta aparecem milhares de nós que ainda iam ser coletados; com a coleta, os números ficam estáveis.

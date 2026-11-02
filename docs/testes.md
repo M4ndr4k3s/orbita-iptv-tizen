@@ -207,6 +207,7 @@ Não testado: troca entre várias faixas de áudio (o stream de teste só tem um
 | `m10-settings.js` (PIN, categoria bloqueada, PIN errado, backup exportar/importar, desativar) | **TV** | 21/21 |
 | `ux-feedback.js` (mini janela 628×352 tocando o canal, botões na tela dos players, grade de cartazes, apagar histórico) | **TV** | 21/21 — janela toca em ~5,1 s, troca em ~3,2 s |
 | `m11-search.js` (busca global: teclado, seções canais/guia/filmes/séries, rolagem, abrir canal, sem resultado) | **TV** | 10/10 no mock; 8/8 na lista real (2,8 mil canais, 37 mil filmes, 10 mil séries): 1ª busca 7,7 s (guia; o resto 0,4 s), seguintes ~80 ms |
+| `m12-stability.js` (zapping longo no player ao vivo, memória e DOM) | **TV** | 6/6 — 100 trocas em 11,8 min, 100 canais tocando, 0 falhas; heap exato após GC 2,69 → 2,72 MB em 40 trocas, nós (360) e listeners (51) iguais |
 | `m10-language.js` (pt-BR → English → pt-BR) | **TV** | menu e `lang` trocados após recarregar |
 
 Medições na TV: PBKDF2 com 100 mil iterações ~750 ms; salvar PIN ~1,2 s e conferir ~1,6 s (com o aviso "Conferindo…").
