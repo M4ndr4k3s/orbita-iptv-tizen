@@ -1,5 +1,8 @@
-// Textos da interface. pt-BR é o idioma base; en/es entram no marco 10.
+// Textos da interface. pt-BR é o idioma base; en e es ficam em arquivos próprios.
 // Chave ausente cai no pt-BR e, em último caso, na própria chave.
+
+import { en } from './i18n.en';
+import { es } from './i18n.es';
 
 const ptBR = {
   'app.name': 'Órbita',
@@ -246,19 +249,91 @@ const ptBR = {
   'player.noChannel': 'Canal {n} não encontrado',
   'player.empty': 'Esta lista não tem canais ao vivo.',
 
+  'set.title': 'Configurações',
+  'set.subtitle': 'Idioma, TV ao vivo, controle parental e backup',
+  'set.language': 'Idioma',
+  'set.preview': 'Mini janela de vídeo na TV ao vivo',
+  'set.askSource': 'Perguntar qual lista usar ao abrir',
+  'set.on': 'Ligada',
+  'set.off': 'Desligada',
+  'set.parental': 'Controle parental',
+  'set.parental.off': 'Desativado',
+  'set.parental.on': 'Ativo · {n} categorias bloqueadas',
+  'set.export': 'Exportar backup',
+  'set.export.hint': 'Pendrive ou Downloads da TV',
+  'set.import': 'Importar backup',
+  'set.import.hint': 'Procura no pendrive e nos Downloads',
+  'pin.enter': 'Digite o PIN',
+  'pin.new': 'Crie um PIN de 4 dígitos',
+  'pin.newBody': 'O PIN protege as categorias bloqueadas e as configurações do controle parental.',
+  'pin.confirm': 'Digite o PIN de novo',
+  'pin.mismatch': 'Os PINs não conferem. Tente de novo.',
+  'pin.wrong': 'PIN incorreto. Tentativas antes do bloqueio: {n}.',
+  'pin.lockedTitle': 'Muitas tentativas',
+  'pin.locked': 'PIN bloqueado por erros seguidos. Tente de novo em {t}.',
+  'pin.waitSec': '{n} s',
+  'pin.waitMin': '{n} min',
+  'pin.erase': 'Apagar',
+  'pin.checking': 'Conferindo o PIN…',
+  'pin.saving': 'Salvando o PIN…',
+  'parental.catBody': '"{name}" está bloqueada pelo controle parental.',
+  'parental.catLocked': 'Categoria bloqueada. Aperte OK na categoria e digite o PIN.',
+  'parental.menuBody': '{n} categorias bloqueadas. O PIN fica liberado até fechar o app.',
+  'parental.cats': 'Categorias bloqueadas',
+  'parental.catsSub': 'OK bloqueia ou libera a categoria',
+  'parental.change': 'Trocar o PIN',
+  'parental.lockNow': 'Bloquear agora',
+  'parental.remove': 'Desativar controle parental',
+  'parental.removeBody': 'O PIN e todos os bloqueios serão apagados.',
+  'parental.pinSet': 'PIN salvo',
+  'parental.locked': 'Conteúdo bloqueado de novo',
+  'parental.removed': 'Controle parental desativado',
+  'parental.kind.live': 'TV ao vivo',
+  'parental.kind.movie': 'Filmes',
+  'parental.kind.series': 'Séries',
+  'backup.exportBody': 'O backup leva {n} listas e os ajustes do app. ATENÇÃO: usuários e senhas das contas vão no arquivo sem criptografia; guarde o pendrive com cuidado. O PIN não vai.',
+  'backup.exportGo': 'Exportar',
+  'backup.done': 'Backup salvo',
+  'backup.savedAt': 'Arquivo: {path}',
+  'backup.failTitle': 'Backup',
+  'backup.writeFail': 'Não foi possível gravar o arquivo. Confira se o pendrive está conectado e com espaço.',
+  'backup.readFail': 'Não foi possível ler os arquivos da TV.',
+  'backup.notFound': 'Nenhum arquivo orbita-backup.json encontrado no pendrive nem nos Downloads.',
+  'backup.importBody': 'Arquivo: {path}. {n} listas novas serão adicionadas ({d} já cadastradas serão ignoradas) e os ajustes serão aplicados.',
+  'backup.importGo': 'Importar',
+  'backup.importing': 'Importando…',
+  'backup.imported': 'Backup importado: {n} listas adicionadas',
+  'backup.err.tooBig': 'O arquivo é grande demais para ser um backup.',
+  'backup.err.notJson': 'O arquivo está corrompido.',
+  'backup.err.notBackup': 'O arquivo não é um backup do Órbita.',
+  'backup.err.newerVersion': 'O backup foi feito por uma versão mais nova do app.',
+  'backup.err.empty': 'O backup não tem nada que possa ser importado.',
+
   'common.ok': 'OK',
   'common.cancel': 'Cancelar',
   'storage.unavailable': 'Armazenamento indisponível: as listas não serão salvas nesta sessão.',
 } as const;
 
 export type I18nKey = keyof typeof ptBR;
-type Dict = Partial<Record<I18nKey, string>>;
+export type Dict = Partial<Record<I18nKey, string>>;
 
-const dictionaries: Record<string, Dict> = { 'pt-BR': ptBR };
+/** Chaves do idioma base (teste de traduções completas). */
+export const BASE_KEYS = Object.keys(ptBR) as I18nKey[];
+
+const dictionaries: Record<string, Dict> = { 'pt-BR': ptBR, en, es };
 let current: Dict = ptBR;
 
+/** Idiomas oferecidos nas Configurações (rótulo no próprio idioma). */
+export const LANGUAGES = [
+  { id: 'pt-BR', label: 'Português (Brasil)' },
+  { id: 'en', label: 'English' },
+  { id: 'es', label: 'Español' },
+];
+
 export function setLanguage(lang: string): void {
-  current = dictionaries[lang] || ptBR;
+  const known = Object.prototype.hasOwnProperty.call(dictionaries, lang);
+  current = known ? dictionaries[lang] : ptBR;
+  if (typeof document !== 'undefined') document.documentElement.lang = known ? lang : 'pt-BR';
 }
 
 export function t(key: I18nKey, params?: Record<string, string | number>): string {

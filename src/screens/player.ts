@@ -16,6 +16,8 @@ import type { PlayerEngine } from '../player/engine';
 import type { Channel } from '../playlist/model';
 import type { Source } from '../playlist/source';
 import { t } from '../services/i18n';
+import { parental } from '../services/parental';
+import { requirePin } from '../components/pinDialog';
 import { wrapIndex, type ChannelList } from '../services/channelLists';
 import { scheduleFor } from '../services/guide';
 import { renderNowNext } from '../components/epgInfo';
@@ -209,6 +211,12 @@ export class PlayerScreen implements Screen {
 
   /** restart: reabre mesmo que seja o stream atual (buffer/formato mudaram). */
   private open(ch: Channel, restart = false): void {
+    // canal de categoria bloqueada (número digitado, recentes da Início): pede o PIN
+    if (parental.isBlocked('live', ch.group)) {
+      this.session.stop();
+      void requirePin(t('parental.catBody', { name: ch.group })).then((ok) => (ok ? this.open(ch, restart) : this.ctx.back()));
+      return;
+    }
     this.current = ch;
     this.pending = null;
     this.pendingIndex = -1;

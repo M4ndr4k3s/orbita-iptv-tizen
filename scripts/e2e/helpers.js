@@ -25,7 +25,9 @@ window.T = (() => {
     return title ? title.textContent : s ? s.className : '-';
   };
   const dialog = () => {
-    const d = document.querySelector('.dlg-layer .dlg-box, .kb-box');
+    // a camada de cima (diálogos podem se empilhar)
+    const all = document.querySelectorAll('.dlg-layer .dlg-box, .kb-box');
+    const d = all.length ? all[all.length - 1] : null;
     return d ? d.textContent.trim().slice(0, 120) : null;
   };
   // digita pelo teclado virtual clicando nas teclas (mesmo caminho do OK do controle)

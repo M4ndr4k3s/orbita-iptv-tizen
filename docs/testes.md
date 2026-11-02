@@ -198,3 +198,15 @@ Medições na TV:
 | Legenda aparece depois de ligada | — | imediata (próxima fala) |
 
 Não testado: troca entre várias faixas de áudio (o stream de teste só tem uma faixa de áudio e uma de legenda, em inglês); formato HLS do Xtream ao vivo em conta real.
+
+## Marco 10: configurações, controle parental, idioma e backup (2026-11-01)
+
+| Teste | Onde | Resultado |
+|---|---|---|
+| Unitários | local | 134/134 (PIN só como hash com salt, bloqueio crescente, storage adulterado, PBKDF2 real, backup inválido/malicioso, traduções completas com os mesmos marcadores) |
+| `m10-settings.js` (PIN, categoria bloqueada, PIN errado, backup exportar/importar, desativar) | **TV** | 21/21 |
+| `m10-language.js` (pt-BR → English → pt-BR) | **TV** | menu e `lang` trocados após recarregar |
+
+Medições na TV: PBKDF2 com 100 mil iterações ~750 ms; salvar PIN ~1,2 s e conferir ~1,6 s (com o aviso "Conferindo…").
+
+Não testado: backup em pendrive (sem pendrive na TV; testado na pasta Downloads); bloqueio de categorias de filmes/séries na TV (mesma lógica do ao vivo, coberta na unidade).

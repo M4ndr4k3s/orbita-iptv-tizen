@@ -1,0 +1,29 @@
+/* Configurações, PIN e categorias bloqueadas */
+.set-rows { display: flex; flex-direction: column; width: 1200px; }
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88px;
+  padding: 0 var(--sp-4);
+  margin-bottom: var(--sp-2);
+  border-radius: var(--r-lg);
+  background: var(--c-bg-2);
+  border: 1px solid var(--c-border);
+}
+.set-row.is-focused { background: var(--c-surface-hi); box-shadow: var(--focus-ring); }
+.set-label { font-size: var(--fs-md); font-weight: 600; }
+.set-value { font-size: var(--fs-sm); color: var(--c-text-2); margin-left: var(--sp-4); text-align: right; }
+.set-row.is-focused .set-value { color: var(--c-cyan); }
+
+.pin-box { width: 640px; text-align: center; }
+.pin-dots { display: flex; justify-content: center; margin: var(--sp-3) 0; }
+.pin-dot { width: 28px; height: 28px; margin: 0 14px; border-radius: 50%; border: 3px solid var(--c-text-3); }
+.pin-dot.on { background: var(--c-cyan); border-color: var(--c-cyan); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: var(--sp-2); }
+.pin-pad .btn { justify-content: center; margin: 0; font-size: var(--fs-md); }
+
+.pc-body { height: 820px; }
+.pc-list { width: 1200px; }
+.pc-list .cat-icon.off { opacity: 0.25; }
+.pc-list .vl-row.locked .cat-label { color: var(--c-cyan); }

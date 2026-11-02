@@ -5,7 +5,7 @@
 import { runImport, ImportError } from '../playlist/runImport';
 import {
   idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
-  channelIds, getMany, searchIds,
+  channelIds, getMany, searchIds, withoutGroups,
 } from '../storage/channelStore';
 import { epgSink, schedule } from '../storage/epgStore';
 import { runEpg, EpgError } from '../epg/runEpg';
@@ -39,17 +39,26 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'channels.first': (gk: string) => firstOf(gk),
   'channels.neighbor': (gk: string, order: number, dir: number) => neighbor(gk, order | 0, dir < 0 ? -1 : 1),
   'channels.byNumber': (gk: string, num: number) => byNumber(gk, num | 0),
-  'channels.ids': (gk: string, group: string | null) => channelIds(gk, typeof group === 'string' ? group : null),
+  'channels.ids': async (gk: string, group: string | null, hide?: string[]) =>
+    withoutGroups(String(gk), 'live', await channelIds(gk, typeof group === 'string' ? group : null), groupList(hide)),
   'channels.getMany': (ids: string[]) => getMany(Array.isArray(ids) ? ids.slice(0, 200).map(String) : []),
-  'vod.ids': (gk: string, kind: string, group: string | null) =>
-    channelIds(String(gk), typeof group === 'string' ? group : null, kind === 'series' ? 'series' : 'movie'),
-  'channels.search': (gk: string, term: string) => searchIds(gk, searchKey(String(term).slice(0, 60))),
+  'vod.ids': async (gk: string, kind: string, group: string | null, hide?: string[]) => {
+    const k = kind === 'series' ? 'series' : 'movie';
+    return withoutGroups(String(gk), k, await channelIds(String(gk), typeof group === 'string' ? group : null, k), groupList(hide));
+  },
+  'channels.search': async (gk: string, term: string, hide?: string[]) =>
+    withoutGroups(String(gk), 'live', await searchIds(gk, searchKey(String(term).slice(0, 60))), groupList(hide)),
   'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
   'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),
   'library.addHistory': (e: SavedEntry) => addHistory(checkEntry(e)),
   'epg.schedule': (ek: string, tvgId: string | null, name: string, from: number, limit: number) =>
     schedule(String(ek), typeof tvgId === 'string' ? tvgId : undefined, String(name || ''), Number(from) || Date.now(), Math.min(50, Math.max(1, limit | 0))),
 };
+
+/** Grupos bloqueados vindos da interface: só strings, quantidade limitada. */
+function groupList(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((g) => typeof g === 'string').slice(0, 500) : [];
+}
 
 /** Entrada vinda da interface: confere a forma antes de gravar. */
 function checkEntry(e: SavedEntry): SavedEntry {

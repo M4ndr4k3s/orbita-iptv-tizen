@@ -26,6 +26,8 @@ import { scheduleFor } from '../services/guide';
 import { renderNowNext, renderSchedule } from '../components/epgInfo';
 import { fmtInt } from '../services/format';
 import { t } from '../services/i18n';
+import { parental } from '../services/parental';
+import { requirePin } from '../components/pinDialog';
 
 export type LiveStart = 'all' | 'fav' | 'recent' | 'guide';
 
@@ -36,7 +38,11 @@ interface Cat {
   count: number;
   group?: string;
   term?: string;
+  /** categoria bloqueada pelo controle parental (sessão ainda não liberada) */
+  locked?: boolean;
 }
+
+declare const __DEV__: boolean;
 
 const CAT_DEBOUNCE_MS = 250;
 const DIGIT_WAIT_MS = 1500;
@@ -106,7 +112,28 @@ export class LiveScreen implements Screen {
         if (!this.scrolling && this.chans) this.loadEpg(this.chans.item());
       }),
     );
+    // PIN digitado (ou bloqueio alterado): refaz as categorias e a lista aberta
+    this.unsub.push(parental.onChange(() => this.onParentalChange()));
+    // só em builds de teste: tamanho da lista aberta (roteiro do controle parental)
+    if (__DEV__) (window as unknown as Record<string, unknown>).__orbitaLiveSize = () => (this.chans ? this.chans.size : 0);
     void this.loadCategories();
+  }
+
+  private onParentalChange(): void {
+    if (!this.cats) return;
+    for (const c of this.catItems) c.locked = c.kind === 'group' && parental.isBlocked('live', c.group);
+    this.cats.setCount(this.catItems.length, this.cats.index);
+    const cat = this.catItems.find((c) => c.id === this.listCatId);
+    this.listCatId = '';
+    if (cat) void this.loadCategory(cat, this.chans.index);
+  }
+
+  /** OK numa categoria: bloqueada pede o PIN antes de abrir. */
+  private async openCategory(): Promise<void> {
+    const cat = this.catItems[this.cats.index];
+    if (cat && cat.locked && !(await requirePin(t('parental.catBody', { name: cat.label })))) return;
+    this.applyCategoryNow();
+    focus.focus(this.chans.root);
   }
 
   unmount(): void {
@@ -142,8 +169,7 @@ export class LiveScreen implements Screen {
     }
     if (cur === this.cats.root) {
       if (key.action === 'ok') {
-        this.applyCategoryNow();
-        focus.focus(this.chans.root);
+        void this.openCategory();
         return true;
       }
       return this.cats.handleKey(key.action);
@@ -166,10 +192,7 @@ export class LiveScreen implements Screen {
       render: (row, c) => renderCat(row, c),
       load: async (s, n) => this.catItems.slice(s, s + n),
       onChange: () => this.scheduleCategory(),
-      onSelect: () => {
-        this.applyCategoryNow();
-        focus.focus(this.chans.root);
-      },
+      onSelect: () => void this.openCategory(),
     });
     this.chans = new VirtualList<Channel>({
       rowHeight: 88,
@@ -224,14 +247,16 @@ export class LiveScreen implements Screen {
       { id: 'recent', kind: 'recent', label: t('live.cat.recent'), count: recents.length },
       { id: 'all', kind: 'all', label: t('live.cat.all'), count: src.import!.live },
     ];
-    for (const g of groups) if (g.kind === 'live') this.catItems.push({ id: 'g:' + g.name, kind: 'group', label: g.name, count: g.count, group: g.name });
+    for (const g of groups) {
+      if (g.kind === 'live') this.catItems.push({ id: 'g:' + g.name, kind: 'group', label: g.name, count: g.count, group: g.name, locked: parental.isBlocked('live', g.name) });
+    }
     // Favoritos/Histórico pelo menu abrem na categoria pedida; senão, a última usada,
     // exceto se ela estiver vazia (abrir numa lista vazia não ajuda ninguém)
     // (o Guia abre como a TV ao vivo: na última categoria usada)
     const byMemory = this.start === 'all' || this.start === 'guide';
     let wanted = byMemory ? settings.get().lastLiveCat || 'all' : this.start;
     const remembered = this.catItems.find((c) => c.id === wanted);
-    if (byMemory && (!remembered || remembered.count === 0)) wanted = 'all';
+    if (byMemory && (!remembered || remembered.count === 0 || remembered.locked)) wanted = 'all';
     const idx = Math.max(0, this.catItems.findIndex((c) => c.id === wanted));
     this.cats.setCount(this.catItems.length, idx);
     this.applyCategoryNow();
@@ -256,20 +281,27 @@ export class LiveScreen implements Screen {
     const gk = src.import!.gk;
     const seq = ++this.loadSeq;
     let list: ChannelList;
-    if (cat.kind === 'fav' || cat.kind === 'recent') {
-      list = snapshotList(await this.ctx.library.list(cat.kind === 'fav' ? 'favorites' : 'history', src.id));
+    const hide = parental.hiddenGroups('live');
+    if (cat.locked) {
+      list = snapshotList([]);
+    } else if (cat.kind === 'fav' || cat.kind === 'recent') {
+      const saved = await this.ctx.library.list(cat.kind === 'fav' ? 'favorites' : 'history', src.id);
+      list = snapshotList(hide.length ? saved.filter((e) => hide.indexOf(e.channel.group) < 0) : saved);
     } else if (cat.kind === 'search') {
-      list = idList(this.ctx.data, await this.ctx.data.call('channels.search', gk, cat.term || ''));
+      list = idList(this.ctx.data, await this.ctx.data.call('channels.search', gk, cat.term || '', hide));
     } else {
-      list = idList(this.ctx.data, await this.ctx.data.call('channels.ids', gk, cat.kind === 'all' ? null : cat.group || ''));
+      list = idList(this.ctx.data, await this.ctx.data.call('channels.ids', gk, cat.kind === 'all' ? null : cat.group || '', cat.kind === 'all' ? hide : []));
     }
     if (seq !== this.loadSeq) return; // o usuário já mudou de categoria
     this.list = list;
     this.listCatId = cat.id;
     this.chans.root.setAttribute('data-empty', cat.kind);
-    setEmptyText(this.chans.root, cat.kind === 'fav' ? t('live.empty.fav') : cat.kind === 'recent' ? t('live.empty.recent') : t('live.empty.group'));
+    setEmptyText(
+      this.chans.root,
+      cat.locked ? t('parental.catLocked') : cat.kind === 'fav' ? t('live.empty.fav') : cat.kind === 'recent' ? t('live.empty.recent') : t('live.empty.group'),
+    );
     this.chans.setCount(list.size, keepIndex);
-    if (cat.kind !== 'search') settings.set({ lastLiveCat: cat.id });
+    if (cat.kind !== 'search' && !cat.locked) settings.set({ lastLiveCat: cat.id });
   }
 
   private play(ch: Channel, index: number): void {
@@ -339,7 +371,7 @@ export class LiveScreen implements Screen {
     const term = await openKeyboard({ title: t('live.searchTitle'), value: '', maxLength: 60 });
     if (!term || !term.trim()) return;
     const src = this.source!;
-    const ids = await withBusy(t('live.searching'), () => this.ctx.data.call('channels.search', src.import!.gk, term.trim()));
+    const ids = await withBusy(t('live.searching'), () => this.ctx.data.call('channels.search', src.import!.gk, term.trim(), parental.hiddenGroups('live')));
     if (ids == null) return;
     if (!ids.length) {
       toast(t('live.noResults', { q: term.trim() }), 'error');
@@ -524,9 +556,10 @@ function renderCat(row: HTMLElement, c: Cat | null): void {
   clear(row);
   if (!c) return;
   const ic = CAT_ICON[c.kind];
-  if (ic) row.appendChild(icon(ic, 'icon cat-icon'));
+  if (c.locked) row.appendChild(icon('lock', 'icon cat-icon'));
+  else if (ic) row.appendChild(icon(ic, 'icon cat-icon'));
   row.appendChild(el('span', { class: 'cat-label', text: c.label }));
-  row.appendChild(el('span', { class: 'cat-count', text: fmtInt(c.count) }));
+  row.appendChild(el('span', { class: 'cat-count', text: c.locked ? '' : fmtInt(c.count) }));
   row.classList.toggle('special', c.kind !== 'group');
 }
 

@@ -43,3 +43,5 @@
 | 2026-11-01 | Canal travava em "conectando" | Consulta de faixas (`info()`) durante o `prepareAsync` | `info()` só responde com o vídeo pronto |
 | 2026-11-01 | Reabrir o stream (buffer/formato) levava ~24 s | Abrir a mesma URL logo depois de fechar trava o AVPlay até o timeout; a nova tentativa, 1,5 s depois, abria rápido | `PlaybackSession.restart`: fecha, espera 1 s e reabre |
 | 2026-11-01 | Roteiro de filmes falhava com posição guardada | Rodada interrompida deixou retomada salva e o diálogo apareceu | Roteiro escolhe "Começar do início" se perguntar |
+| 2026-11-01 | Roteiro: confirmação do PIN digitada na caixa anterior | A caixa do PIN fecha 150 ms depois do 4º dígito | Roteiro espera uma caixa de PIN vazia |
+| 2026-11-01 | Roteiro: `dialog()` lia um diálogo de saída esquecido por baixo | Helper pegava o primeiro diálogo do DOM | Helper lê a camada de cima |

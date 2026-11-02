@@ -21,6 +21,8 @@ import { VodPlayerScreen } from './vodPlayer';
 import { SeriesScreen } from './series';
 import { fmtInt } from '../services/format';
 import { t } from '../services/i18n';
+import { parental } from '../services/parental';
+import { requirePin } from '../components/pinDialog';
 
 export type VodKind = 'movie' | 'series';
 
@@ -29,6 +31,7 @@ interface Cat {
   label: string;
   count: number;
   group: string | null;
+  locked?: boolean;
 }
 
 const CAT_DEBOUNCE_MS = 250;
@@ -49,6 +52,7 @@ export class VodScreen implements Screen {
   private catTimer: ReturnType<typeof setTimeout> | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private details: VodDetails | null = null;
+  private unsubParental: (() => void) | null = null;
 
   private poster!: HTMLImageElement;
   private pName!: HTMLElement;
@@ -77,10 +81,25 @@ export class VodScreen implements Screen {
       return;
     }
     this.build(n);
+    this.unsubParental = parental.onChange(() => {
+      for (const c of this.catItems) c.locked = c.group != null && parental.isBlocked(this.kind, c.group);
+      this.cats.setCount(this.catItems.length, this.cats.index);
+      this.listCatId = '';
+      this.applyCategoryNow();
+    });
     void this.loadCategories(n);
   }
 
+  /** OK numa categoria: bloqueada pede o PIN antes de abrir. */
+  private async openCategory(): Promise<void> {
+    const cat = this.catItems[this.cats.index];
+    if (cat && cat.locked && !(await requirePin(t('parental.catBody', { name: cat.label })))) return;
+    this.applyCategoryNow();
+    focus.focus(this.items.root);
+  }
+
   unmount(): void {
+    if (this.unsubParental) this.unsubParental();
     for (const tm of [this.catTimer, this.idleTimer]) if (tm) clearTimeout(tm);
   }
 
@@ -95,8 +114,7 @@ export class VodScreen implements Screen {
     if (cur === this.items.root) return this.items.handleKey(key.action);
     if (cur === this.cats.root) {
       if (key.action === 'ok') {
-        this.applyCategoryNow();
-        focus.focus(this.items.root);
+        void this.openCategory();
         return true;
       }
       return this.cats.handleKey(key.action);
@@ -119,16 +137,14 @@ export class VodScreen implements Screen {
       render: (row, c) => {
         clear(row);
         if (!c) return;
+        if (c.locked) row.appendChild(icon('lock', 'icon cat-icon'));
         row.appendChild(el('span', { class: 'cat-label', text: c.label }));
-        row.appendChild(el('span', { class: 'cat-count', text: fmtInt(c.count) }));
+        row.appendChild(el('span', { class: 'cat-count', text: c.locked ? '' : fmtInt(c.count) }));
         row.classList.toggle('special', c.group == null);
       },
       load: async (s, n) => this.catItems.slice(s, s + n),
       onChange: () => this.scheduleCategory(),
-      onSelect: () => {
-        this.applyCategoryNow();
-        focus.focus(this.items.root);
-      },
+      onSelect: () => void this.openCategory(),
     });
     this.items = new VirtualList<Channel>({
       rowHeight: 88,
@@ -164,7 +180,7 @@ export class VodScreen implements Screen {
   private async loadCategories(total: number): Promise<void> {
     const groups = await this.ctx.data.call('groups.get', this.source!.import!.gk);
     this.catItems = [{ id: 'all', label: t('vod.all'), count: total, group: null }];
-    for (const g of groups) if (g.kind === this.kind) this.catItems.push({ id: 'g:' + g.name, label: g.name, count: g.count, group: g.name });
+    for (const g of groups) if (g.kind === this.kind) this.catItems.push({ id: 'g:' + g.name, label: g.name, count: g.count, group: g.name, locked: parental.isBlocked(this.kind, g.name) });
     this.cats.setCount(this.catItems.length, 0);
     this.applyCategoryNow();
     if (!focus.current || !this.root.contains(focus.current)) focus.focus(this.items.root);
@@ -180,7 +196,10 @@ export class VodScreen implements Screen {
     const cat = this.catItems[this.cats.index];
     if (!cat || cat.id === this.listCatId) return;
     const seq = ++this.loadSeq;
-    void this.ctx.data.call('vod.ids', this.source!.import!.gk, this.kind, cat.group).then((ids) => {
+    const req = cat.locked
+      ? Promise.resolve([] as string[])
+      : this.ctx.data.call('vod.ids', this.source!.import!.gk, this.kind, cat.group, cat.group == null ? parental.hiddenGroups(this.kind) : []);
+    void req.then((ids) => {
       if (seq !== this.loadSeq) return;
       this.list = idList(this.ctx.data, ids);
       this.listCatId = cat.id;

@@ -19,11 +19,11 @@ export interface RpcMethods {
   'channels.neighbor': { args: [string, number, 1 | -1]; result: Channel | null };
   'channels.byNumber': { args: [string, number]; result: Channel | null };
   /** ids de um grupo (ou todos os ao vivo com null), na ordem da lista */
-  'channels.ids': { args: [string, string | null]; result: string[] };
+  'channels.ids': { args: [string, string | null, string[]?]; result: string[] };
   'channels.getMany': { args: [string[]]; result: Array<Channel | null> };
-  'channels.search': { args: [string, string]; result: string[] };
+  'channels.search': { args: [string, string, string[]?]; result: string[] };
   /** ids de filmes ou séries de uma categoria (ou de todas com null) */
-  'vod.ids': { args: [string, 'movie' | 'series', string | null]; result: string[] };
+  'vod.ids': { args: [string, 'movie' | 'series', string | null, string[]?]; result: string[] };
   'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
   'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
   'library.addHistory': { args: [SavedEntry]; result: void };

@@ -17,6 +17,7 @@ import { AboutScreen } from '../screens/about';
 import { ListsScreen } from '../screens/lists';
 import { LiveScreen } from '../screens/live';
 import { VodScreen } from '../screens/vod';
+import { SettingsScreen } from '../screens/settings';
 import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
 import { settings } from '../storage/settings';
@@ -26,7 +27,7 @@ import { LibraryService } from '../services/library';
 import { IdleTasks } from '../services/idleTasks';
 import { MemoryStore, type Store } from '../storage/store';
 import type { Source } from '../playlist/source';
-import { t, type I18nKey } from '../services/i18n';
+import { t, setLanguage, type I18nKey } from '../services/i18n';
 import { ImportService } from '../services/importService';
 import { importWithProgress, importInBackground } from '../screens/importFlow';
 
@@ -39,7 +40,6 @@ const PENDING: Partial<Record<SectionId, [IconName, I18nKey, number]>> = {
   movies: ['movies', 'nav.movies', 8],
   series: ['series', 'nav.series', 8],
   search: ['search', 'nav.search', 11],
-  settings: ['settings', 'nav.settings', 10],
 };
 
 class App implements AppContext {
@@ -85,6 +85,7 @@ class App implements AppContext {
     const back = () => this.back();
     if (id === 'about') return new AboutScreen(__APP_VERSION__, this.keys, back);
     if (id === 'lists') return new ListsScreen(this);
+    if (id === 'settings') return new SettingsScreen(this);
     // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
     if (id === 'live') return new LiveScreen(this, 'all');
     if (id === 'guide') return new LiveScreen(this, 'guide');
@@ -185,6 +186,7 @@ async function sourceStore(data: DataClient): Promise<{ store: Store<Source>; pe
 async function boot(): Promise<void> {
   const host = document.getElementById('app');
   if (!host) return;
+  setLanguage(settings.get().language);
   const keys = registerRemoteKeys();
   const data = new DataClient();
   const { store, persistent } = await sourceStore(data);

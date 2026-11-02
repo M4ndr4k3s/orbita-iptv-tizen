@@ -181,6 +181,17 @@ export async function channelIds(gk: string, group: string | null, kind = 'live'
   return (keys as string[]).sort();
 }
 
+/** Tira da lista os itens dos grupos bloqueados (poucos grupos: um getAllKeys por grupo). */
+export async function withoutGroups(gk: string, kind: string, ids: string[], groups: string[]): Promise<string[]> {
+  if (!groups.length || !ids.length) return ids;
+  const db = await openDb();
+  const idx = db.transaction('channels', 'readonly').objectStore('channels').index('gk_kind_group');
+  const hide: Record<string, true> = {};
+  const lists = await Promise.all(groups.map((g) => req(idx.getAllKeys(IDBKeyRange.only([gk, kind, g])))));
+  for (const keys of lists) for (const k of keys as string[]) hide[k] = true;
+  return ids.filter((id) => !hide[id]);
+}
+
 export async function getMany(ids: string[]): Promise<Array<Channel | null>> {
   const db = await openDb();
   const st = db.transaction('channels', 'readonly').objectStore('channels');
