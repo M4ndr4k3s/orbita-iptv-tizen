@@ -14,7 +14,7 @@
   margin-top: var(--sp-6);
   padding: var(--sp-8) var(--sp-6);
   border-radius: var(--r-lg);
-  background: radial-gradient(800px 400px at 100% 0%, rgba(61, 214, 245, 0.12), transparent 70%), var(--c-bg-2);
+  background: radial-gradient(800px 400px at 100% 0%, rgba(var(--c-accent-rgb), 0.12), transparent 70%), var(--c-bg-2);
   border: 1px solid var(--c-border);
 }
 .hero-title { font-size: var(--fs-xxl); font-weight: 700; letter-spacing: -1px; }

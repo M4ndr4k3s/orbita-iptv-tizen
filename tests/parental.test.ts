@@ -210,3 +210,17 @@ describe('idiomas', () => {
     expect(t('nav.settings')).toBe('Configurações');
   });
 });
+
+describe('backup: tema', () => {
+  const wrap = (theme: unknown) => JSON.stringify({ app: 'orbita', type: 'backup', version: 1, settings: { theme }, sources: [] });
+  it('aceita os temas conhecidos', () => {
+    for (const th of ['black', 'cinema', 'navy']) {
+      const r = parseBackup(wrap(th));
+      expect(r.ok && r.value.settings.theme).toBe(th);
+    }
+  });
+  it('ignora tema desconhecido ou com código', () => {
+    expect(parseBackup(wrap('<script>')).ok).toBe(false);
+    expect(parseBackup(wrap('rosa')).ok).toBe(false);
+  });
+});

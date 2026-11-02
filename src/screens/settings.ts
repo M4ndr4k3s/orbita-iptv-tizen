@@ -8,7 +8,7 @@ import { choose, alertBox } from '../components/dialog';
 import { withBusy } from '../components/busy';
 import { toast } from '../components/toast';
 import { requirePin, definePin } from '../components/pinDialog';
-import { settings, type Settings } from '../storage/settings';
+import { settings, applyTheme, THEMES, type Settings } from '../storage/settings';
 import { parental } from '../services/parental';
 import { buildBackup, parseBackup, writeBackup, findBackup } from '../services/backup';
 import { t, LANGUAGES, type I18nKey } from '../services/i18n';
@@ -55,6 +55,7 @@ export class SettingsScreen implements Screen {
     const lang = LANGUAGES.find((l) => l.id === s.language) || LANGUAGES[0];
     return [
       { id: 'lang', label: t('set.language'), value: lang.label, run: () => this.language() },
+      { id: 'theme', label: t('set.theme'), value: t(('theme.' + (THEMES.indexOf(s.theme as never) >= 0 ? s.theme : 'black')) as I18nKey), run: () => this.theme() },
       { id: 'preview', label: t('set.preview'), value: onOff(s.livePreview), run: () => this.toggle('livePreview') },
       { id: 'ask', label: t('set.askSource'), value: onOff(s.askSourceOnStart), run: () => this.toggle('askSourceOnStart') },
       {
@@ -99,6 +100,19 @@ export class SettingsScreen implements Screen {
     settings.set({ language: r });
     // todos os textos são montados na abertura das telas: recarregar é o jeito simples
     window.location.reload();
+  }
+
+  private async theme(): Promise<void> {
+    const cur = settings.get().theme;
+    const r = await choose(
+      t('set.theme'),
+      null,
+      THEMES.map((id) => ({ id, label: t(('theme.' + id) as I18nKey), primary: id === cur })),
+      true,
+    );
+    if (!r) return;
+    settings.set({ theme: r });
+    applyTheme(r);
   }
 
   private async toggle(k: 'livePreview' | 'askSourceOnStart'): Promise<void> {

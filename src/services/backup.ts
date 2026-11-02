@@ -20,6 +20,7 @@ const SETTING_RULES: { [K in keyof Settings]?: Array<string | boolean> | null } 
   liveFormat: ['ts', 'm3u8'],
   audioLang: null,
   subLang: null,
+  theme: ['black', 'cinema', 'navy'],
 };
 
 export interface BackupData {

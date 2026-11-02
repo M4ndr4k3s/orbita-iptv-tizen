@@ -63,7 +63,7 @@
 }
 .sb-label { margin-left: var(--sp-3); opacity: 0; font-size: var(--fs-md); }
 .sidebar.expanded .sb-label { opacity: 1; }
-.sb-item.active { color: var(--c-cyan); }
+.sb-item.active { color: var(--c-accent); }
 .sb-item.active::before {
   content: "";
   position: absolute;
@@ -73,7 +73,7 @@
   border-radius: 0 6px 6px 0;
   background: var(--grad-brand);
 }
-.sb-item.is-focused { background: var(--c-surface-hi); color: var(--c-text); box-shadow: inset 0 0 0 3px var(--c-cyan); }
+.sb-item.is-focused { background: var(--c-surface-hi); color: var(--c-text); box-shadow: inset 0 0 0 3px var(--c-accent); }
 
 /* ── Trilho ── */
 .rail { margin-top: var(--sp-6); }
@@ -97,7 +97,7 @@
   justify-content: space-between;
   transition: transform var(--t-fast);
 }
-.tile-icon { width: 48px; height: 48px; color: var(--c-cyan); }
+.tile-icon { width: 48px; height: 48px; color: var(--c-accent); }
 .tile-label { font-size: var(--fs-md); font-weight: 600; }
 .tile.is-focused { transform: scale(1.08); box-shadow: var(--focus-ring); border-color: transparent; }
 
@@ -131,7 +131,7 @@
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-md);
   background: var(--c-bg-2);
-  border-left: 6px solid var(--c-cyan);
+  border-left: 6px solid var(--c-accent);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   opacity: 0;
   transform: translateY(20px);

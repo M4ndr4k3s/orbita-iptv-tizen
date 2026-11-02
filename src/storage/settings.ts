@@ -19,6 +19,17 @@ export interface Settings {
   audioLang: string;
   /** idioma de legenda preferido; '' = desligadas */
   subLang: string;
+  /** tema de cores: 'black' | 'cinema' | 'navy' */
+  theme: string;
+}
+
+export const THEMES = ['black', 'cinema', 'navy'] as const;
+
+/** Aplica o tema na página (tokens em styles/tokens.css). Valor desconhecido = Preto. */
+export function applyTheme(theme: string): void {
+  const v = (THEMES as readonly string[]).indexOf(theme) > 0 ? theme : '';
+  if (v) document.documentElement.setAttribute('data-theme', v);
+  else document.documentElement.removeAttribute('data-theme');
 }
 
 const KEY = 'orbita.settings.v1';
@@ -34,6 +45,7 @@ const DEFAULTS: Settings = {
   liveFormat: 'ts',
   audioLang: '',
   subLang: '',
+  theme: 'black',
 };
 
 export interface SettingsBackend {

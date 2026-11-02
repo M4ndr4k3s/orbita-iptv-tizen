@@ -11,7 +11,12 @@
   --c-text-3: #737373;
   --c-violet: #7c5cff;
   --c-cyan: #3dd6f5;
+  /* destaque do tema: foco, seleção, barras. --c-accent-rgb serve para rgba() */
   --c-accent: var(--c-cyan);
+  --c-accent-rgb: 61, 214, 245;
+  /* texto sobre o destaque (fundo ciano pede texto escuro; vermelho/azul, branco) */
+  --c-on-accent: #04121a;
+  --c-on-accent-2: #0d3a48;
   --c-danger: #ff5c7a;
   --c-ok: #3ee08f;
   --grad-brand: linear-gradient(135deg, #7c5cff 0%, #3dd6f5 100%);
@@ -39,7 +44,36 @@
   --r-lg: 24px;
 
   /* sem desfoque: sombra borrada custa caro para pintar na GPU da TV */
-  --focus-ring: 0 0 0 4px var(--c-cyan);
+  --focus-ring: 0 0 0 4px var(--c-accent);
   --t-fast: 120ms;
   --t-med: 200ms;
+}
+
+/* Temas (Configurações → Tema). O padrão (acima) é o Preto: preto puro + ciano.
+   Cinema: grafite quase preto + vermelho, padrão dos apps de streaming; guias de
+   TV recomendam quase-preto (cansa menos que #000 numa sala escura).
+   Azul noite: marinho escuro + azul vivo, comum em players de IPTV. */
+:root[data-theme="cinema"] {
+  --c-bg: #141414;
+  --c-bg-2: #1f1f1f;
+  --c-text-2: #b3b3b3;
+  --c-text-3: #808080;
+  --c-violet: #e50914;
+  --c-accent: #e50914;
+  --c-accent-rgb: 229, 9, 20;
+  --c-on-accent: #ffffff;
+  --c-on-accent-2: rgba(255, 255, 255, 0.78);
+  --grad-brand: linear-gradient(135deg, #b20710 0%, #e50914 100%);
+}
+:root[data-theme="navy"] {
+  --c-bg: #0f171e;
+  --c-bg-2: #1a242f;
+  --c-text-2: #aab4bf;
+  --c-text-3: #6f7c8a;
+  --c-violet: #00a8e1;
+  --c-accent: #1a98ff;
+  --c-accent-rgb: 26, 152, 255;
+  --c-on-accent: #ffffff;
+  --c-on-accent-2: rgba(255, 255, 255, 0.8);
+  --grad-brand: linear-gradient(135deg, #1a98ff 0%, #00a8e1 100%);
 }

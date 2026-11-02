@@ -39,7 +39,7 @@ body.playing #backdrop { display: none; }
 }
 .osd-logo { width: 160px; height: 96px; object-fit: contain; margin-right: var(--sp-4); background: rgba(255, 255, 255, 0.06); border-radius: var(--r-sm); }
 .osd-line { display: flex; align-items: baseline; }
-.osd-num { font-size: var(--fs-xl); font-weight: 700; color: var(--c-cyan); margin-right: var(--sp-3); }
+.osd-num { font-size: var(--fs-xl); font-weight: 700; color: var(--c-accent); margin-right: var(--sp-3); }
 .osd-name { font-size: var(--fs-xl); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1300px; }
 .osd-group { font-size: var(--fs-sm); color: var(--c-text-2); margin-top: 4px; }
 .osd-bottom {
@@ -67,7 +67,7 @@ body.playing #backdrop { display: none; }
   font-size: 96px;
   font-weight: 700;
   text-align: right;
-  color: var(--c-cyan);
+  color: var(--c-accent);
 }
 
 .player-error {
@@ -91,7 +91,7 @@ body.playing #backdrop { display: none; }
 .vod-time { font-size: var(--fs-sm); min-width: 120px; color: var(--c-text-2); }
 .vod-time:last-child { text-align: right; }
 .vod-bar { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.2); margin: 0 var(--sp-2); overflow: hidden; }
-.vod-bar-fill { height: 100%; background: var(--c-cyan); }
+.vod-bar-fill { height: 100%; background: var(--c-accent); }
 .vod-row { display: flex; align-items: center; justify-content: space-between; }
 
 /* legendas: texto puro centralizado acima da barra do OSD */
@@ -124,7 +124,7 @@ body.playing #backdrop { display: none; }
   font-size: var(--fs-sm);
 }
 .osd-btn .icon { width: 28px; height: 28px; margin-right: var(--sp-1); }
-.osd.bar-mode .osd-btn.sel { background: var(--c-cyan); color: #04121a; border-color: transparent; }
+.osd.bar-mode .osd-btn.sel { background: var(--c-accent); color: var(--c-on-accent); border-color: transparent; }
 /* botões só ficam ativos depois do OK (o OSD também aparece sozinho) */
 .osd-bar { opacity: 0.55; }
 .osd.bar-mode .osd-bar { opacity: 1; }

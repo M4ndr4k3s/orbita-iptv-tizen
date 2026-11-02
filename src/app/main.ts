@@ -22,7 +22,7 @@ import { VodScreen } from '../screens/vod';
 import { SettingsScreen } from '../screens/settings';
 import { SourcePickerScreen } from '../screens/sourcePicker';
 import { SourceService } from '../services/sourceService';
-import { settings } from '../storage/settings';
+import { settings, applyTheme } from '../storage/settings';
 import { DataClient } from '../storage/dataClient';
 import { ensureDevSeed } from './devSeed';
 import { LibraryService } from '../services/library';
@@ -190,6 +190,7 @@ async function boot(): Promise<void> {
   const host = document.getElementById('app');
   if (!host) return;
   setLanguage(settings.get().language);
+  applyTheme(settings.get().theme);
   const keys = registerRemoteKeys();
   const data = new DataClient();
   const { store, persistent } = await sourceStore(data);
