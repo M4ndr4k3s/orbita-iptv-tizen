@@ -54,7 +54,7 @@ O app não está na loja da Samsung: instala-se em **Developer Mode**.
    tizen install -n Orbita.wgt -t <ip-da-tv>:26101
    ```
 
-> Os `.wgt` anexados às [releases](https://github.com/M4ndr4k3s/orbita-iptv-tizen/releases) são assinados com o certificado de desenvolvedor do autor e **só instalam em TVs autorizadas nesse certificado**. Para a sua TV, gere o pacote pelo código. O SHA-256 de cada pacote está nas notas da release.
+> Os `.wgt` anexados às [releases](https://github.com/M4ndr4k3s/orbita-iptv-tizen/releases) são assinados com o certificado de desenvolvedor do autor e **só instalam na TV autorizada nesse certificado**. Para a sua TV, gere o pacote pelo código. Cada release traz um arquivo `.sha256` para conferir o download (`sha256sum -c Orbita-x.y.z.wgt.sha256`).
 
 ## Desenvolvimento
 
