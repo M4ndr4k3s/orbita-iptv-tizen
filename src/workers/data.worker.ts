@@ -5,15 +5,18 @@
 import { runImport, ImportError } from '../playlist/runImport';
 import {
   idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
-  channelIds, getMany, searchIds, withoutGroups,
+  channelIds, getMany, searchIds, withoutGroups, liveRefs,
 } from '../storage/channelStore';
-import { epgSink, schedule } from '../storage/epgStore';
+import { epgSink, schedule, searchProgrammes, warmProgrammes } from '../storage/epgStore';
 import { runEpg, EpgError } from '../epg/runEpg';
 import { listEntries, toggleFavorite, addHistory, deleteLibrary, clearHistory } from '../storage/libraryStore';
 import { searchKey, type SavedEntry } from '../playlist/model';
 import { idbStore, openDb } from '../storage/db';
 import type { Source } from '../playlist/source';
 import type { ToWorker, FromWorker, RpcName } from './protocol';
+
+// busca no guia: o que está no ar e o que começa nas próximas 24 h
+const EPG_SEARCH_HORIZON_MS = 24 * 3600 * 1000;
 
 const jobs = new Map<number, AbortController>();
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m);
@@ -48,6 +51,20 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   },
   'channels.search': async (gk: string, term: string, hide?: string[]) =>
     withoutGroups(String(gk), 'live', await searchIds(gk, searchKey(String(term).slice(0, 60))), groupList(hide)),
+  'vod.search': async (gk: string, kind: string, term: string, hide?: string[]) => {
+    const k = kind === 'series' ? 'series' : 'movie';
+    return withoutGroups(String(gk), k, await searchIds(String(gk), searchKey(String(term).slice(0, 60)), 300, k), groupList(hide));
+  },
+  'epg.search': async (ek: string, gk: string, term: string, hide?: string[]) => {
+    const hits = await searchProgrammes(String(ek), String(gk), String(term).slice(0, 60), () => liveRefs(String(gk)), Date.now(), EPG_SEARCH_HORIZON_MS, 60);
+    const allowed = new Set(await withoutGroups(String(gk), 'live', hits.map((h) => h.channelId), groupList(hide)));
+    return hits.filter((h) => allowed.has(h.channelId));
+  },
+  'search.warm': async (gk: string, ek: string | null) => {
+    await searchIds(String(gk), 'a', 1, 'movie');
+    await searchIds(String(gk), 'a', 1, 'series');
+    if (typeof ek === 'string') await warmProgrammes(ek, String(gk), () => liveRefs(String(gk)), Date.now(), EPG_SEARCH_HORIZON_MS);
+  },
   'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
   'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),
   'library.addHistory': (e: SavedEntry) => addHistory(checkEntry(e)),

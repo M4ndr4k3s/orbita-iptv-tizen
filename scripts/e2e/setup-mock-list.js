@@ -23,7 +23,9 @@ window.__E2E__ = (async () => {
     await activate('Atualizar agora');
     imported = await afterImport(600000);
   }
-  card.click(); await sleep(200);
+  card.click();
+  // o diálogo do card pode levar mais que 200 ms para abrir na TV
+  await until(() => document.querySelector('.dlg-box .btn'), 5000).catch(() => {});
   const use = [...document.querySelectorAll('.dlg-box .btn')].find((b) => /Usar esta lista/.test(b.textContent));
   if (use) use.click(); else press('back');
   await sleep(500);

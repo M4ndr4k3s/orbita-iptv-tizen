@@ -45,3 +45,14 @@
 | 2026-11-01 | Roteiro de filmes falhava com posição guardada | Rodada interrompida deixou retomada salva e o diálogo apareceu | Roteiro escolhe "Começar do início" se perguntar |
 | 2026-11-01 | Roteiro: confirmação do PIN digitada na caixa anterior | A caixa do PIN fecha 150 ms depois do 4º dígito | Roteiro espera uma caixa de PIN vazia |
 | 2026-11-01 | Roteiro: `dialog()` lia um diálogo de saída esquecido por baixo | Helper pegava o primeiro diálogo do DOM | Helper lê a camada de cima |
+
+## Busca global lenta na primeira vez (marco 11)
+
+- **Sintoma:** a primeira busca na lista real levava 17–21 s na TV, e a segunda ainda ~3,5 s.
+- **Causa:** filmes e séries não tinham índice de busca gravado (varrer 47 mil itens com cursor levava ~16 s), o guia era varrido inteiro a cada busca (~4–12 s), e o cache de VOD expulsava o índice de séries quando o aquecimento e a busca montavam o mesmo índice ao mesmo tempo.
+- **Solução:**
+  - o texto normalizado de filmes e séries agora é gravado na importação, no mesmo registro do índice ao vivo;
+  - os títulos do guia das próximas horas ficam em memória no worker (refeitos a cada 1 h);
+  - os índices começam a ser montados quando a tela de busca abre;
+  - montagens em andamento são compartilhadas por promessa.
+- **Resultado medido:** 1ª busca ~7,7 s (só o guia; filmes e séries em 0,4 s), e as seguintes em ~80 ms. Listas importadas antes disso usam a varredura lenta até a próxima atualização.

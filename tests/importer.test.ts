@@ -76,7 +76,7 @@ describe('ChannelBuilder (índice de busca)', () => {
     const text = '#EXTM3U\n#EXTINF:-1 tvg-chno="5",Notícias HD\nhttp://s/live/1.ts\n#EXTINF:-1,Filme\nhttp://s/movie/u/p/2.mp4\n';
     for (const e of [...p.push(text), ...p.end()]) await b.addM3u(e);
     await b.finish({ importedAt: 0, bytes: 0 });
-    expect(saved).toEqual({ gk: 's:g', ids: ['s:g:00000001'], q: ['noticias hd 5'], movies: ['s:g:00000002'], series: [] });
+    expect(saved).toEqual({ gk: 's:g', ids: ['s:g:00000001'], q: ['noticias hd 5'], movies: ['s:g:00000002'], series: [], movieQ: ['filme'], seriesQ: [] });
   });
 });
 

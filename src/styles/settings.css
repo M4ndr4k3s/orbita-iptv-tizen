@@ -27,3 +27,15 @@
 .pc-list { width: 1200px; }
 .pc-list .cat-icon.off { opacity: 0.25; }
 .pc-list .vl-row.locked .cat-label { color: var(--c-cyan); }
+
+/* busca global */
+.search { display: flex; flex-direction: column; }
+.search-body { flex: 1; overflow: hidden; position: relative; margin-top: var(--sp-3); }
+.search-sec { font-size: var(--fs-sm); color: var(--c-text-2); text-transform: uppercase; letter-spacing: 1px; margin: var(--sp-3) 0 var(--sp-2); }
+.search-row { display: flex; align-items: center; min-height: 76px; padding: 0 var(--sp-4); margin-bottom: var(--sp-1); border-radius: var(--r-lg); background: var(--c-bg-2); }
+.search-row.is-focused { background: var(--c-surface-hi); box-shadow: var(--focus-ring); }
+.search-ic { width: 36px; height: 36px; margin-right: var(--sp-3); color: var(--c-text-2); flex-shrink: 0; }
+.search-row.is-focused .search-ic { color: var(--c-cyan); }
+.search-txt { min-width: 0; }
+.search-name { font-size: var(--fs-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-meta { font-size: var(--fs-sm); color: var(--c-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

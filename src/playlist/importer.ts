@@ -15,6 +15,9 @@ export interface SearchIndex {
   /** ids de filmes e séries na ordem da lista ("Todos" do VOD sem varrer índice) */
   movies?: string[];
   series?: string[];
+  /** texto normalizado de filmes e séries (mesma posição de movies/series) para a busca global */
+  movieQ?: string[];
+  seriesQ?: string[];
 }
 
 export interface ImportSink {
@@ -68,6 +71,8 @@ export class ChannelBuilder {
   private searchQ: string[] = [];
   private movieIds: string[] = [];
   private seriesIds: string[] = [];
+  private movieQ: string[] = [];
+  private seriesQ: string[] = [];
   private order = 0;
   private liveNum = 0;
   private stats = { live: 0, movies: 0, series: 0, duplicates: 0, skipped: 0 };
@@ -150,7 +155,7 @@ export class ChannelBuilder {
     const groups = Array.from(this.groups.values()).filter((g) => g.count > 0);
     await this.sink.putGroups(groups);
     if (this.sink.putSearchIndex) {
-      await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ, movies: this.movieIds, series: this.seriesIds });
+      await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ, movies: this.movieIds, series: this.seriesIds, movieQ: this.movieQ, seriesQ: this.seriesQ });
     }
     return {
       gk: this.gk,
@@ -214,8 +219,13 @@ export class ChannelBuilder {
     if (ch.kind === 'live') {
       this.searchIds.push(ch.id);
       this.searchQ.push(ch.q + ' ' + ch.num);
-    } else if (ch.kind === 'movie') this.movieIds.push(ch.id);
-    else this.seriesIds.push(ch.id);
+    } else if (ch.kind === 'movie') {
+      this.movieIds.push(ch.id);
+      this.movieQ.push(ch.q);
+    } else {
+      this.seriesIds.push(ch.id);
+      this.seriesQ.push(ch.q);
+    }
     this.batch.push(ch);
     if (this.batch.length >= this.batchSize) await this.flush();
     if (this.opts.onProgress && this.order % 1000 === 0) this.opts.onProgress(this.order);

@@ -83,6 +83,7 @@ export async function deleteGeneration(gk: string): Promise<void> {
   tx.objectStore('search').delete(gk);
   await txDone(tx);
   if (searchCache && searchCache.gk === gk) searchCache = null;
+  vodIndex.clear();
   forgetEpgMeta(gk);
 }
 
@@ -229,11 +230,51 @@ async function loadSearchIndex(gk: string): Promise<SearchIndex> {
   return searchCache;
 }
 
+// filmes/séries de gerações antigas não têm o texto gravado: monta na primeira busca.
+// Guarda a promessa (o aquecimento e a busca chegam juntos) e só da geração atual.
+const vodIndex = new Map<string, Promise<SearchIndex>>();
+
+function loadVodIndex(gk: string, kind: 'movie' | 'series'): Promise<SearchIndex> {
+  const key = gk + '|' + kind;
+  const hit = vodIndex.get(key);
+  if (hit) return hit;
+  for (const k of vodIndex.keys()) if (k.indexOf(gk + '|') !== 0) vodIndex.delete(k);
+  const p = buildVodIndex(gk, kind);
+  vodIndex.set(key, p);
+  p.catch(() => vodIndex.delete(key));
+  return p;
+}
+
+async function buildVodIndex(gk: string, kind: 'movie' | 'series'): Promise<SearchIndex> {
+  // caminho rápido: texto gravado na importação junto com o índice ao vivo
+  const live = await loadSearchIndex(gk);
+  const savedIds = kind === 'movie' ? live.movies : live.series;
+  const savedQ = kind === 'movie' ? live.movieQ : live.seriesQ;
+  if (savedIds && savedQ && savedIds.length === savedQ.length) return { gk, ids: savedIds, q: savedQ };
+  // gerações importadas antes da busca global: varre os itens (lento, ~16 s com 47 mil na TV)
+  const db = await openDb();
+  const ids: string[] = [];
+  const q: string[] = [];
+  await new Promise<void>((resolve, reject) => {
+    const cur = db.transaction('channels', 'readonly').objectStore('channels').index('gk_kind').openCursor(IDBKeyRange.only([gk, kind]));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return resolve();
+      const v = c.value as Channel;
+      ids.push(v.id);
+      q.push(v.q);
+      c.continue();
+    };
+    cur.onerror = () => reject(cur.error);
+  });
+  return { gk, ids, q };
+}
+
 /** Busca por nome (sem acento/maiúsculas) ou número; devolve ids na ordem da lista. */
-export async function searchIds(gk: string, term: string, limit = 300): Promise<string[]> {
+export async function searchIds(gk: string, term: string, limit = 300, kind: 'live' | 'movie' | 'series' = 'live'): Promise<string[]> {
   const words = term.split(' ').filter(Boolean);
   if (!words.length) return [];
-  const idx = await loadSearchIndex(gk);
+  const idx = kind === 'live' ? await loadSearchIndex(gk) : await loadVodIndex(gk, kind);
   const out: string[] = [];
   for (let i = 0; i < idx.q.length && out.length < limit; i++) {
     const text = idx.q[i];
@@ -242,6 +283,24 @@ export async function searchIds(gk: string, term: string, limit = 300): Promise<
     if (ok) out.push(idx.ids[i]);
   }
   return out.sort();
+}
+
+/** tvg-id e nome de cada canal ao vivo, para casar com o guia na busca de programas. */
+export async function liveRefs(gk: string): Promise<Array<{ id: string; tvgId?: string; name: string }>> {
+  const db = await openDb();
+  const out: Array<{ id: string; tvgId?: string; name: string }> = [];
+  await new Promise<void>((resolve, reject) => {
+    const cur = db.transaction('channels', 'readonly').objectStore('channels').index('gk_kind').openCursor(IDBKeyRange.only([gk, 'live']));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return resolve();
+      const v = c.value as Channel;
+      out.push({ id: v.id, tvgId: v.tvgId, name: v.name });
+      c.continue();
+    };
+    cur.onerror = () => reject(cur.error);
+  });
+  return out;
 }
 
 /** Página de itens de um grupo, na ordem da lista. */

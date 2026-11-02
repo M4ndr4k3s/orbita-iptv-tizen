@@ -4,6 +4,7 @@ import type { Channel, Group, ImportStats, SavedEntry } from '../playlist/model'
 import type { ImportErrorCode, ImportProgress } from '../playlist/runImport';
 import type { Source } from '../playlist/source';
 import type { EpgStats, Programme } from '../epg/model';
+import type { EpgHit } from '../storage/epgStore';
 import type { EpgErrorCode } from '../epg/runEpg';
 
 /** Métodos que a interface pode chamar no worker (lista fechada). */
@@ -24,6 +25,12 @@ export interface RpcMethods {
   'channels.search': { args: [string, string, string[]?]; result: string[] };
   /** ids de filmes ou séries de uma categoria (ou de todas com null) */
   'vod.ids': { args: [string, 'movie' | 'series', string | null, string[]?]; result: string[] };
+  /** busca de filmes ou séries por nome */
+  'vod.search': { args: [string, 'movie' | 'series', string, string[]?]; result: string[] };
+  /** programas do guia pelo título (no ar ou nas próximas horas), já casados com canais da lista */
+  'epg.search': { args: [string, string, string, string[]?]; result: EpgHit[] };
+  /** prepara os índices da busca global (filmes, séries e títulos do guia) */
+  'search.warm': { args: [string, string | null]; result: void };
   'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
   'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
   'library.addHistory': { args: [SavedEntry]; result: void };

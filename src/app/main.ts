@@ -14,6 +14,7 @@ import type { IconName } from '../components/icons';
 import { HomeScreen } from '../screens/home';
 import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
+import { SearchScreen } from '../screens/search';
 import { ListsScreen } from '../screens/lists';
 import { LiveScreen } from '../screens/live';
 import { VodScreen } from '../screens/vod';
@@ -39,7 +40,6 @@ const PENDING: Partial<Record<SectionId, [IconName, I18nKey, number]>> = {
   guide: ['guide', 'nav.guide', 7],
   movies: ['movies', 'nav.movies', 8],
   series: ['series', 'nav.series', 8],
-  search: ['search', 'nav.search', 11],
 };
 
 class App implements AppContext {
@@ -86,6 +86,7 @@ class App implements AppContext {
     if (id === 'about') return new AboutScreen(__APP_VERSION__, this.keys, back);
     if (id === 'lists') return new ListsScreen(this);
     if (id === 'settings') return new SettingsScreen(this);
+    if (id === 'search') return new SearchScreen(this);
     // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
     if (id === 'live') return new LiveScreen(this, 'all');
     if (id === 'guide') return new LiveScreen(this, 'guide');

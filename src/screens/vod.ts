@@ -215,23 +215,8 @@ export class VodScreen implements Screen {
   }
 
   private open(it: Channel): void {
-    const src = this.source!;
-    if (this.kind === 'series' && it.xid != null && src.kind === 'xtream') {
-      this.ctx.push(new SeriesScreen(this.ctx, src, it));
-      return;
-    }
-    const url = streamUrl(it, src);
-    if (!url) return toast(t('player.fail.noUrl'), 'error');
     const d = this.details;
-    this.ctx.push(
-      new VodPlayerScreen(this.ctx, {
-        title: it.name,
-        subtitle: it.group,
-        url,
-        key: resumeKey(src, it.kind, it),
-        durationMs: d && d.durationSec ? d.durationSec * 1000 : undefined,
-      }),
-    );
+    openVodItem(this.ctx, this.source!, it, d && d.durationSec ? d.durationSec * 1000 : undefined);
   }
 
   /** Rolando: só texto. Parou: pôster e detalhes do servidor. */
@@ -327,4 +312,23 @@ interface ItemParts {
   img: HTMLImageElement;
   name: HTMLElement;
   rating: HTMLElement;
+}
+
+/** Abre um filme (player) ou uma série (temporadas). Usado também pela busca global. */
+export function openVodItem(ctx: AppContext, src: Source, it: Channel, durationMs?: number): void {
+  if (it.kind === 'series' && it.xid != null && src.kind === 'xtream') {
+    ctx.push(new SeriesScreen(ctx, src, it));
+    return;
+  }
+  const url = streamUrl(it, src);
+  if (!url) return toast(t('player.fail.noUrl'), 'error');
+  ctx.push(
+    new VodPlayerScreen(ctx, {
+      title: it.name,
+      subtitle: it.group,
+      url,
+      key: resumeKey(src, it.kind, it),
+      durationMs,
+    }),
+  );
 }
