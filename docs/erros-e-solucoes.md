@@ -93,3 +93,9 @@
 
 - **Causa:** a pausa durante o buffering não registrava a hora da pausa (`pausedAt` = 0). Ao continuar, o app achava que a pausa tinha passado de 1 minuto e reabria o canal para voltar ao vivo.
 - **Solução:** registrar a hora também quando a pausa acontece em buffering. Pego pelo m5.
+
+## ←/→ subia ou descia de linha
+
+- **Causa:** mesma do ↑/↓. Sem nada exatamente ao lado, a navegação escolhia o alvo mais próximo na diagonal (por exemplo, o cartão do carrossel de baixo).
+- **Solução:** ↑/↓ e ←/→ só vão para a mesma coluna ou linha. Há duas exceções com diagonal: cabeçalho da tela ↔ conteúdo, e menu lateral ↔ conteúdo.
+- **Lição:** roteiros não podem mudar a configuração de quem usa a TV. O `themes.js` agora devolve o tema que estava antes. Configurações devem ser alteradas pela tela, nunca direto no `localStorage`, porque o app guarda uma cópia em memória e regrava por cima.

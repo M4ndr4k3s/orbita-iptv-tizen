@@ -41,6 +41,12 @@ describe('pickNext', () => {
     const sidebarAbove = { left: 0, top: 100, width: 300, height: 60 };
     expect(pickNext(lastRow, [sidebarAbove], 'up')).toBe(-1);
   });
+  it('←/→ não sobe nem desce: último cartão de um carrossel não pula para o de baixo', () => {
+    const lastCard = r(1600, 300, 180, 270);
+    const nextRowCard = r(1700, 650, 180, 270);
+    expect(pickNext(lastCard, [nextRowCard], 'right')).toBe(-1);
+    expect(pickNext(r(400, 650, 180, 270), [r(200, 300, 180, 270)], 'left')).toBe(-1);
+  });
   it('ignora candidatos atrás da origem', () => {
     expect(pickNext(r(200, 0), [r(0, 0), r(400, 0)], 'right')).toBe(1);
   });

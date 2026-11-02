@@ -32,6 +32,8 @@ window.__E2E__ = (async () => {
   // cursor anda: a janela continua no canal escolhido, com a legenda dele
   press('down');
   await sleep(2500);
+  // se caiu no próprio canal da janela (legenda some), anda mais um
+  if (q('.lp-pv-name').classList.contains('hidden')) { press('down'); await sleep(2500); }
   // a legenda mostra o canal da janela (o primeiro escolhido), diferente do cursor
   const cursorNow = txt('.vl-chans .vl-row.sel .cr-name');
   check('mover o cursor não troca a janela (mostra a legenda do canal)', !!q('.lp-video.live') && !q('.lp-pv-name').classList.contains('hidden') && txt('.lp-pv-name').indexOf(cursorNow) < 0, [txt('.lp-pv-name'), cursorNow, before]);

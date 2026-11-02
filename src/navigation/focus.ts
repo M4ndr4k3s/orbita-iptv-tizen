@@ -91,6 +91,16 @@ export class FocusManager {
         if (j >= 0) idx = pool[j];
       }
     }
+    // menu lateral <-> conteúdo: os ícones do menu não ficam na altura exata do
+    // conteúdo, então ←/→ cruzando essa fronteira pode ir na diagonal
+    if (idx < 0 && (dir === 'left' || dir === 'right')) {
+      const inSide = !!from.closest('.sidebar');
+      if ((dir === 'left' && !inSide) || (dir === 'right' && inSide)) {
+        const pool = all.map((_e, i) => i).filter((i) => !!all[i].closest('.sidebar') !== inSide);
+        const j = pool.length ? pickNext(from.getBoundingClientRect(), pool.map((i) => rects[i]), dir, true) : -1;
+        if (j >= 0) idx = pool[j];
+      }
+    }
     if (idx < 0) return false;
     let target = all[idx];
     // entrando em outro grupo: prefere o item lembrado desse grupo

@@ -1,6 +1,6 @@
 {
   "name": "orbita-tv",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "description": "Órbita — player IPTV para Samsung Smart TV (Tizen)",
   "type": "module",

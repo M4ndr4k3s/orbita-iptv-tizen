@@ -38,7 +38,14 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 ## Versão
 
-**1.1.1** em `package.json` e `tizen/config.xml` (tags `v1.0.0`, `v1.0.1`, `v1.1.0` e `v1.1.1`). Atualize os dois juntos na próxima versão.
+**1.1.2** em `package.json` e `tizen/config.xml` (tags `v1.0.0` a `v1.1.2`). Atualize os dois juntos na próxima versão.
+
+### Pacote 1.1.2 (2026-11-02)
+
+- `dist/Orbita-1.1.2.wgt`, SHA-256 `34a3b62aa43a0d01b94f5f8527a893ad042675adfec7d06c7c5638a0046482e2`.
+- **Correção:** navegação linear. ←/→ não sobe nem desce de linha (no fim de um carrossel ou da grade o foco fica parado). A diagonal só vale para entrar e sair do menu lateral.
+- **Checagens:** 0 credenciais; 158 testes unitários.
+- **Na TV:** nav-linear 5/5, ux-feedback 31/31, home 10/10, home-series 4/4, themes 6/6, usb-download 7/7, m5 20/20.
 
 ### Pacote 1.1.1 (2026-11-02)
 
