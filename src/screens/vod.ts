@@ -35,6 +35,9 @@ interface Cat {
 }
 
 const CAT_DEBOUNCE_MS = 250;
+const GRID_COLS = 4;
+const GRID_CELL_W = 204;
+const GRID_ROW_H = 268;
 const IDLE_MS = 400;
 
 export class VodScreen implements Screen {
@@ -147,9 +150,12 @@ export class VodScreen implements Screen {
       onSelect: () => void this.openCategory(),
     });
     this.items = new VirtualList<Channel>({
-      rowHeight: 88,
-      visibleRows: 9,
-      className: 'vl-chans vl-vod',
+      // grade de cartazes: 4 por linha, 3 linhas visíveis (só 12 células no DOM)
+      rowHeight: GRID_ROW_H,
+      visibleRows: 3,
+      columns: GRID_COLS,
+      cellWidth: GRID_CELL_W,
+      className: 'vl-chans vl-vod vl-grid',
       render: (row, it) => this.renderItem(row, it),
       load: (s, n) => (this.list ? this.list.load(s, n) : Promise.resolve([])),
       onChange: (_i, it) => this.onMove(it),
@@ -169,8 +175,9 @@ export class VodScreen implements Screen {
     this.pGenre = el('div', { class: 'lp-group' });
     this.pPlot = el('p', { class: 'vp-plot' });
     this.pResume = el('div', { class: 'vp-resume' });
+    // o cartaz já aparece na grade: o painel mostra só uma miniatura e os detalhes
     const panel = el('div', { class: 'live-panel vod-panel' }, [
-      el('div', { class: 'vp-poster-box' }, [this.poster]),
+      el('div', { class: 'vp-poster-box small' }, [this.poster]),
       el('div', { class: 'vp-text' }, [this.pName, this.pMeta, this.pGenre, this.pResume, this.pPlot]),
       el('p', { class: 'lp-hint', text: t(this.kind === 'movie' ? 'vod.hint.movie' : 'vod.hint.series') }),
     ]);
@@ -262,13 +269,13 @@ export class VodScreen implements Screen {
   private renderItem(row: HTMLElement, it: Channel | null): void {
     let p = (row as unknown as { _p?: ItemParts })._p;
     if (!p) {
-      p = { img: el('img', { class: 'vr-poster', attrs: { alt: '' } }), name: el('span', { class: 'cr-name' }), rating: el('span', { class: 'vr-rating' }) };
+      p = { img: el('img', { class: 'vg-poster', attrs: { alt: '' } }), name: el('span', { class: 'vg-name' }), rating: el('span', { class: 'vg-rating' }) };
       const parts = p;
       parts.img.addEventListener('error', () => parts.img.classList.add('hidden'));
       parts.img.addEventListener('load', () => parts.img.classList.remove('hidden'));
-      row.appendChild(p.img);
+      // sem cartaz: fica só a moldura
+      row.appendChild(el('div', { class: 'vg-frame' }, [p.img, p.rating]));
       row.appendChild(p.name);
-      row.appendChild(p.rating);
       (row as unknown as { _p?: ItemParts })._p = p;
     }
     if (!it) {

@@ -27,6 +27,7 @@ export interface RpcMethods {
   'library.list': { args: ['favorites' | 'history', string]; result: SavedEntry[] };
   'library.toggleFavorite': { args: [SavedEntry]; result: boolean };
   'library.addHistory': { args: [SavedEntry]; result: void };
+  'library.clearHistory': { args: []; result: void };
   /** programas de um canal (por tvg-id ou nome) que terminam depois de `from` */
   'epg.schedule': { args: [string, string | null, string, number, number]; result: Programme[] };
 }

@@ -81,8 +81,8 @@ window.__E2E__ = (async () => {
   const allCount = Number(txt('.vl-cats .vl-row.sel .cat-count').replace(/\D/g, ''));
   const rowsAll = window.__orbitaLiveSize ? window.__orbitaLiveSize() : null;
   metrics.todosComBloqueio = rowsAll;
-  // a lista do mock tem uma só categoria: com ela bloqueada, "Todos" fica vazio
-  check('"Todos" esconde os canais bloqueados', rowsAll === 0 && allCount > 0, [rowsAll, allCount]);
+  // "Todos" mostra a contagem cheia, mas a lista vem sem os canais da categoria bloqueada
+  check('"Todos" esconde os canais bloqueados', allCount > 0 && rowsAll < allCount, [rowsAll, allCount]);
   // abre a categoria: pede PIN; errado avisa
   press('left'); await sleep(150);
   for (let i = 0; i < 40 && txt('.vl-cats .vl-row.sel .cat-label') !== group; i++) { press('down'); await sleep(60); }

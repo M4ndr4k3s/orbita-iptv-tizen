@@ -2,6 +2,7 @@
 // da fonte ativa para desenhar a estrela em cada linha sem consultar o banco.
 
 import type { DataClient } from '../storage/dataClient';
+import { resume } from '../storage/resume';
 import { channelKey, snapshotOf, type Channel, type SavedEntry } from '../playlist/model';
 
 export class LibraryService {
@@ -44,6 +45,13 @@ export class LibraryService {
 
   async addHistory(sourceId: string, ch: Channel): Promise<void> {
     await this.data.call('library.addHistory', entry(sourceId, ch));
+    this.emit();
+  }
+
+  /** Apaga os canais assistidos de todas as listas e as posições de filmes/episódios. */
+  async clearHistory(): Promise<void> {
+    await this.data.call('library.clearHistory');
+    resume.clear();
     this.emit();
   }
 

@@ -11,6 +11,7 @@ import { VirtualList } from '../components/virtualList';
 import { button } from '../components/button';
 import { openKeyboard } from '../components/keyboard';
 import { withBusy } from '../components/busy';
+import { confirmClearHistory } from '../components/dialog';
 import { toast } from '../components/toast';
 import { icon, type IconName } from '../components/icons';
 import { idList, snapshotList, type ChannelList } from '../services/channelLists';
@@ -182,7 +183,10 @@ export class LiveScreen implements Screen {
     this.subtitle = el('p', { class: 'screen-sub' });
     const head = el('div', { class: 'screen-head live-head' }, [
       el('div', {}, [el('h1', { class: 'screen-title', text: this.guideMode ? t('guide.title') : t('live.title') }), this.subtitle]),
-      button(t('live.search'), { icon: 'search', onClick: () => void this.search() }),
+      el('div', { class: 'live-head-actions' }, [
+        this.start === 'recent' ? button(t('history.clear'), { icon: 'history', onClick: () => void this.clearHistory() }) : null,
+        button(t('live.search'), { icon: 'search', onClick: () => void this.search() }),
+      ]),
     ]);
 
     this.cats = new VirtualList<Cat>({
@@ -365,6 +369,12 @@ export class LiveScreen implements Screen {
       this.listCatId = '';
       await this.loadCategory(cat, this.chans.index);
     }
+  }
+
+  private async clearHistory(): Promise<void> {
+    if (!(await confirmClearHistory())) return;
+    await this.ctx.library.clearHistory();
+    toast(t('history.cleared'));
   }
 
   private async search(): Promise<void> {

@@ -63,6 +63,14 @@ export async function addHistory(entry: SavedEntry): Promise<void> {
   }
 }
 
+/** Apaga o histórico de assistidos de todas as listas (favoritos ficam). */
+export async function clearHistory(): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction('history', 'readwrite');
+  tx.objectStore('history').clear();
+  await txDone(tx);
+}
+
 /** Apaga favoritos e histórico de uma fonte removida. */
 export async function deleteLibrary(sourceId: string): Promise<void> {
   const db = await openDb();

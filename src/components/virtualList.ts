@@ -1,7 +1,8 @@
 // Lista virtualizada para o controle remoto. O contêiner é UM elemento
 // focável; ↑/↓ movem a seleção interna e só as linhas visíveis existem no DOM
 // (um conjunto fixo reaproveitado). Itens são buscados por páginas sob demanda,
-// então 50 mil canais custam o mesmo que 50.
+// então 50 mil canais custam o mesmo que 50. Com `columns` > 1 vira grade
+// (cartazes): cada linha tem N células e ←/→ andam dentro da linha.
 
 import { el } from '../utils/dom';
 
@@ -17,6 +18,10 @@ export interface VirtualListOptions<T> {
   onChange?(index: number, item: T | null): void;
   /** texto quando a lista está vazia */
   emptyText?: string;
+  /** grade: itens por linha (padrão 1 = lista) */
+  columns?: number;
+  /** grade: largura de cada célula em px */
+  cellWidth?: number;
 }
 
 const PAGE = 40;
@@ -32,6 +37,7 @@ export class VirtualList<T> {
   readonly root: HTMLElement;
   private viewport: HTMLElement;
   private rows: HTMLElement[] = [];
+  private readonly cols: number;
   private empty: HTMLElement;
   private items = new Map<number, T>();
   private loading = new Set<number>();
@@ -42,12 +48,18 @@ export class VirtualList<T> {
   private epoch = 0;
 
   constructor(private o: VirtualListOptions<T>) {
+    this.cols = Math.max(1, o.columns || 1);
     this.viewport = el('div', { class: 'vl-viewport' });
     this.viewport.style.height = o.rowHeight * o.visibleRows + 'px';
-    for (let i = 0; i < o.visibleRows; i++) {
-      const r = el('div', { class: 'vl-row' });
+    for (let i = 0; i < o.visibleRows * this.cols; i++) {
+      const r = el('div', { class: this.cols > 1 ? 'vl-row vl-cell' : 'vl-row' });
       r.style.height = o.rowHeight + 'px';
-      r.style.top = i * o.rowHeight + 'px';
+      r.style.top = Math.floor(i / this.cols) * o.rowHeight + 'px';
+      if (this.cols > 1) {
+        const w = o.cellWidth || 200;
+        r.style.left = (i % this.cols) * w + 'px';
+        r.style.width = w + 'px';
+      }
       this.rows.push(r);
       this.viewport.appendChild(r);
     }
@@ -105,18 +117,25 @@ export class VirtualList<T> {
     this.move(i - this.sel);
   }
 
-  /** ↑/↓ e CH± (página). Retorna true se consumiu a tecla. */
+  /** ↑/↓, CH± (página) e, na grade, ←/→ dentro da linha. Retorna true se consumiu a tecla. */
   handleKey(action: string): boolean {
+    const c = this.cols;
     switch (action) {
       case 'up':
-        return this.move(-1);
+        // primeira linha da grade: deixa a tecla subir (sai da lista)
+        return this.sel >= c ? this.move(-c) : false;
       case 'down':
-        return this.move(1);
+        if (c > 1 && Math.floor(this.sel / c) === Math.floor((this.count - 1) / c)) return false;
+        return this.move(c);
+      case 'left':
+        return c > 1 && this.sel % c > 0 ? this.move(-1) : false;
+      case 'right':
+        return c > 1 && this.sel % c < c - 1 ? this.move(1) : false;
       case 'chUp':
-        this.move(-this.o.visibleRows);
+        this.move(-this.o.visibleRows * c);
         return true;
       case 'chDown':
-        this.move(this.o.visibleRows);
+        this.move(this.o.visibleRows * c);
         return true;
       default:
         return false;
@@ -124,13 +143,14 @@ export class VirtualList<T> {
   }
 
   private scrollTo(i: number): void {
-    this.top = scrollWindow(this.top, i, this.o.visibleRows, this.count);
+    const c = this.cols;
+    this.top = scrollWindow(this.top, Math.floor(i / c), this.o.visibleRows, Math.ceil(this.count / c));
   }
 
   private paint(): void {
-    const vis = this.o.visibleRows;
+    const vis = this.o.visibleRows * this.cols;
     for (let k = 0; k < vis; k++) {
-      const i = this.top + k;
+      const i = this.top * this.cols + k;
       const r = this.rows[k];
       if (i >= this.count) {
         r.classList.add('hidden');
@@ -143,8 +163,8 @@ export class VirtualList<T> {
       this.o.render(r, item || null, i);
     }
     // garante as páginas visíveis e a próxima
-    this.ensure(this.top);
-    this.ensure(this.top + vis);
+    this.ensure(this.top * this.cols);
+    this.ensure(this.top * this.cols + vis);
   }
 
   private ensure(i: number): void {

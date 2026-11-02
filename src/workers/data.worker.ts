@@ -9,7 +9,7 @@ import {
 } from '../storage/channelStore';
 import { epgSink, schedule } from '../storage/epgStore';
 import { runEpg, EpgError } from '../epg/runEpg';
-import { listEntries, toggleFavorite, addHistory, deleteLibrary } from '../storage/libraryStore';
+import { listEntries, toggleFavorite, addHistory, deleteLibrary, clearHistory } from '../storage/libraryStore';
 import { searchKey, type SavedEntry } from '../playlist/model';
 import { idbStore, openDb } from '../storage/db';
 import type { Source } from '../playlist/source';
@@ -51,6 +51,7 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   'library.list': (kind: string, sourceId: string) => listEntries(kind === 'history' ? 'history' : 'favorites', String(sourceId)),
   'library.toggleFavorite': (e: SavedEntry) => toggleFavorite(checkEntry(e)),
   'library.addHistory': (e: SavedEntry) => addHistory(checkEntry(e)),
+  'library.clearHistory': () => clearHistory(),
   'epg.schedule': (ek: string, tvgId: string | null, name: string, from: number, limit: number) =>
     schedule(String(ek), typeof tvgId === 'string' ? tvgId : undefined, String(name || ''), Number(from) || Date.now(), Math.min(50, Math.max(1, limit | 0))),
 };

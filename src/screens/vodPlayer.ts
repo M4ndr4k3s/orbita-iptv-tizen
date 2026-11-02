@@ -15,6 +15,7 @@ import { resume } from '../storage/resume';
 import { fmtTime } from '../services/vodInfo';
 import { t } from '../services/i18n';
 import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
+import { OsdBar } from '../components/osdBar';
 import { applyEnginePrefs, applyTrackPrefs } from '../player/preferences';
 
 declare const __DEV__: boolean;
@@ -40,6 +41,9 @@ export class VodPlayerScreen implements Screen {
   private session: PlaybackSession;
   private unsub: (() => void) | null = null;
   private osd: HTMLElement;
+  private buttons: OsdBar;
+  /** OK abriu os botões: ←/→ andam neles em vez de avançar/voltar o vídeo */
+  private barMode = false;
   private status: HTMLElement;
   private bar: HTMLElement;
   private pos: HTMLElement;
@@ -69,7 +73,13 @@ export class VodPlayerScreen implements Screen {
     this.bar = el('div', { class: 'vod-bar-fill' });
     this.pos = el('span', { class: 'vod-time' });
     this.dur = el('span', { class: 'vod-time' });
-    this.osd = el('div', { class: 'osd visible' }, [
+    this.buttons = new OsdBar([
+      { id: 'pause', label: t('osd.pause'), icon: 'pause', run: () => this.togglePause() },
+      { id: 'back10', label: t('osd.back10'), icon: 'rewind', run: () => this.nudge(-10000) },
+      { id: 'fwd10', label: t('osd.fwd10'), icon: 'forward', run: () => this.nudge(10000) },
+      { id: 'options', label: t('osd.options'), icon: 'settings', run: () => this.options() },
+    ]);
+    this.osd = el('div', { class: 'osd vod-osd visible' }, [
       el('div', { class: 'osd-top' }, [
         el('div', { class: 'osd-text' }, [
           el('div', { class: 'osd-line' }, [el('div', { class: 'osd-name', text: item.title })]),
@@ -79,6 +89,7 @@ export class VodPlayerScreen implements Screen {
       el('div', { class: 'osd-bottom vod-bottom' }, [
         el('div', { class: 'vod-progress' }, [this.pos, el('div', { class: 'vod-bar' }, [this.bar]), this.dur]),
         el('div', { class: 'vod-row' }, [this.status, el('div', { class: 'osd-hint', text: t('vod.hint') })]),
+        this.buttons.root,
       ]),
     ]);
     this.errorBox = el('div', { class: 'player-error hidden' });
@@ -114,9 +125,55 @@ export class VodPlayerScreen implements Screen {
     if (__DEV__) delete (window as unknown as Record<string, unknown>).__orbitaVod;
   }
 
+  /** Back com os botões abertos só fecha os botões. */
+  onBack(): boolean {
+    if (this.barMode) {
+      this.setBarMode(false);
+      return false;
+    }
+    return true;
+  }
+
+  private setBarMode(on: boolean): void {
+    this.barMode = on;
+    this.osd.classList.toggle('bar-mode', on);
+    if (on) this.showOsd();
+  }
+
+  private togglePause(): void {
+    this.session.togglePause();
+    this.showOsd();
+  }
+
+  private options(): void {
+    void openPlayerOptions({
+      engine: this.engine,
+      reopen: () => this.session.restart(this.item.url, this.session.state.positionMs),
+      setSubtitles: (on) => this.subs.setOn(on),
+      subtitlesOn: () => this.subs.on,
+      liveXtream: false,
+    }).then(() => this.showOsd());
+  }
+
   onKey(key: RemoteKey): boolean {
     if (!this.errorBox.classList.contains('hidden')) return false;
     if (!this.started) return false;
+    if (this.barMode) {
+      if (key.action === 'left' || key.action === 'right') {
+        this.buttons.move(key.action === 'left' ? -1 : 1);
+        this.showOsd();
+        return true;
+      }
+      if (key.action === 'ok') {
+        this.buttons.activate();
+        this.showOsd();
+        return true;
+      }
+      if (key.action === 'up') {
+        this.setBarMode(false);
+        return true;
+      }
+    }
     switch (key.action) {
       case 'left':
         this.nudge(-10000);
@@ -131,12 +188,14 @@ export class VodPlayerScreen implements Screen {
         this.nudge(60000);
         return true;
       case 'ok':
+      case 'down':
+        this.setBarMode(true);
+        return true;
       case 'info':
         if (this.osd.classList.contains('visible')) this.osd.classList.remove('visible');
         else this.showOsd();
         return true;
       case 'up':
-      case 'down':
         this.showOsd();
         return true;
       case 'playPause':
@@ -150,13 +209,7 @@ export class VodPlayerScreen implements Screen {
         this.ctx.back();
         return true;
       case 'green':
-        void openPlayerOptions({
-          engine: this.engine,
-          reopen: () => this.session.restart(this.item.url, this.session.state.positionMs),
-          setSubtitles: (on) => this.subs.setOn(on),
-          subtitlesOn: () => this.subs.on,
-          liveXtream: false,
-        });
+        this.options();
         return true;
       default:
         return false;
@@ -235,6 +288,7 @@ export class VodPlayerScreen implements Screen {
     else if (s.status === 'retrying') text = t('player.retrying', { a: s.attempt + 1, m: s.maxAttempts });
     this.status.textContent = text;
     this.status.classList.toggle('warn', s.status === 'retrying');
+    this.buttons.setLabel('pause', t(s.status === 'paused' ? 'osd.play' : 'osd.pause'));
     if (s.status === 'paused' || s.status === 'retrying') this.showOsd(true);
     if (s.status === 'failed') this.showError();
     // fim do vídeo (VOD: 'ended' vira idle na sessão)
@@ -269,7 +323,12 @@ export class VodPlayerScreen implements Screen {
     this.paintProgress();
     this.osd.classList.add('visible');
     if (this.osdTimer) clearTimeout(this.osdTimer);
-    if (!sticky) this.osdTimer = setTimeout(() => this.osd.classList.remove('visible'), OSD_MS);
+    if (!sticky) {
+      this.osdTimer = setTimeout(() => {
+        this.osd.classList.remove('visible');
+        this.setBarMode(false);
+      }, OSD_MS);
+    }
   }
 
   private debugState(): Record<string, unknown> {

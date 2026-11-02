@@ -22,6 +22,7 @@ import { wrapIndex, type ChannelList } from '../services/channelLists';
 import { scheduleFor } from '../services/guide';
 import { renderNowNext } from '../components/epgInfo';
 import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
+import { OsdBar } from '../components/osdBar';
 import { applyEnginePrefs, applyTrackPrefs, liveFormatPref } from '../player/preferences';
 
 declare const __DEV__: boolean;
@@ -55,6 +56,9 @@ export class PlayerScreen implements Screen {
   private unsub: (() => void) | null = null;
 
   private osd: HTMLElement;
+  private bar: OsdBar;
+  /** botões armados: o OSD abre sozinho ao trocar de canal, então o 1º OK só destaca */
+  private barArmed = false;
   private osdNum: HTMLElement;
   private osdName: HTMLElement;
   private osdGroup: HTMLElement;
@@ -100,13 +104,19 @@ export class PlayerScreen implements Screen {
     this.osdLogo = el('img', { class: 'osd-logo', attrs: { alt: '' } });
     this.osdLogo.addEventListener('error', () => this.osdLogo.classList.add('hidden'));
     this.status = el('div', { class: 'osd-status' });
+    // botões na tela: o mesmo que as teclas coloridas, sem precisar delas
+    this.bar = new OsdBar([
+      { id: 'options', label: t('osd.options'), icon: 'settings', run: () => void this.options() },
+      { id: 'fav', label: t('osd.fav'), icon: 'favorites', run: () => void this.toggleFavorite() },
+      { id: 'channels', label: t('osd.channels'), icon: 'lists', run: () => this.ctx.back() },
+    ]);
     this.osd = el('div', { class: 'osd' }, [
       el('div', { class: 'osd-top' }, [
         this.osdLogo,
         el('div', { class: 'osd-text' }, [el('div', { class: 'osd-line' }, [this.osdNum, this.osdName, this.osdFav]), this.osdGroup]),
         this.osdEpg,
       ]),
-      el('div', { class: 'osd-bottom' }, [this.status, el('div', { class: 'osd-hint', text: t('player.hint') })]),
+      el('div', { class: 'osd-bottom' }, [this.status, this.bar.root, el('div', { class: 'osd-hint', text: t('player.hint') })]),
     ]);
     this.numberBox = el('div', { class: 'osd-digits hidden' });
     this.errorBox = el('div', { class: 'player-error hidden' });
@@ -164,6 +174,11 @@ export class PlayerScreen implements Screen {
         this.typeDigit(key.digit || 0);
         return true;
       case 'ok':
+        // OK: mostra o OSD; com ele aberto, aciona o botão escolhido
+        if (this.digits) this.commitDigits();
+        else if (this.barArmed && this.osd.classList.contains('visible')) this.bar.activate();
+        else this.armBar();
+        return true;
       case 'info':
         if (this.digits) this.commitDigits();
         else this.toggleOsd();
@@ -185,7 +200,8 @@ export class PlayerScreen implements Screen {
         return true;
       case 'left':
       case 'right':
-        this.showOsd();
+        if (this.barArmed && this.osd.classList.contains('visible')) this.bar.move(key.action === 'left' ? -1 : 1);
+        this.armBar();
         return true;
       default:
         return false;
@@ -200,10 +216,13 @@ export class PlayerScreen implements Screen {
       subtitlesOn: () => this.subs.on,
       liveXtream: this.source.kind === 'xtream' && this.current.xid != null,
     });
+    // o OSD some sozinho enquanto o diálogo está aberto: volta com os botões
+    this.armBar();
   }
 
   private async toggleFavorite(): Promise<void> {
     const on = await this.ctx.library.toggleFavorite(this.source.id, this.current);
+    this.bar.setLabel('fav', t(on ? 'osd.unfav' : 'osd.fav'));
     toast(on ? t('live.favAdded', { name: this.current.name }) : t('live.favRemoved', { name: this.current.name }));
     this.paintChannel(this.current);
     this.showOsd();
@@ -307,7 +326,9 @@ export class PlayerScreen implements Screen {
     this.paintEpg(ch);
     this.osdNum.textContent = String(ch.num);
     this.osdName.textContent = ch.name;
-    this.osdFav.classList.toggle('hidden', !this.ctx.library.isFavorite(this.source.id, ch));
+    const fav = this.ctx.library.isFavorite(this.source.id, ch);
+    this.osdFav.classList.toggle('hidden', !fav);
+    this.bar.setLabel('fav', t(fav ? 'osd.unfav' : 'osd.fav'));
     this.osdGroup.textContent = ch.group;
     if (ch.logo) {
       this.osdLogo.classList.remove('hidden');
@@ -381,11 +402,22 @@ export class PlayerScreen implements Screen {
     if (!this.osd.classList.contains('visible') && !this.pending) this.paintEpg(this.current);
     this.osd.classList.add('visible');
     if (this.osdTimer) clearTimeout(this.osdTimer);
-    if (!sticky) this.osdTimer = setTimeout(() => this.osd.classList.remove('visible'), OSD_MS);
+    if (!sticky) this.osdTimer = setTimeout(() => this.hideOsd(), OSD_MS);
+  }
+
+  private armBar(): void {
+    this.barArmed = true;
+    this.osd.classList.add('bar-mode');
+    this.showOsd();
+  }
+
+  private hideOsd(): void {
+    this.osd.classList.remove('visible', 'bar-mode');
+    this.barArmed = false;
   }
 
   private toggleOsd(): void {
-    if (this.osd.classList.contains('visible')) this.osd.classList.remove('visible');
+    if (this.osd.classList.contains('visible')) this.hideOsd();
     else this.showOsd();
   }
 

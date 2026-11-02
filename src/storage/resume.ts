@@ -48,6 +48,16 @@ export class ResumeStore {
       keys.sort((a, b) => this.map[a].at - this.map[b].at);
       for (const k of keys.slice(0, keys.length - MAX)) delete this.map[k];
     }
+    this.persist();
+  }
+
+  /** Apaga todos os pontos de retomada ("apagar histórico"). */
+  clear(): void {
+    this.map = {};
+    this.persist();
+  }
+
+  private persist(): void {
     try {
       if (this.backend) this.backend.setItem(KEY, JSON.stringify(this.map));
     } catch {

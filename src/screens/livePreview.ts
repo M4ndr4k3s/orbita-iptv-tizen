@@ -8,7 +8,8 @@ import { getEngine } from '../player/engineFactory';
 import { PlaybackSession, type SessionState } from '../player/session';
 import type { VideoRect } from '../player/engine';
 
-const START_DELAY_MS = 800;
+// espera curta: a janela começa a abrir logo que a seleção para (800 ms parecia travado)
+const START_DELAY_MS = 400;
 
 export class LivePreview {
   private session: PlaybackSession | null = null;

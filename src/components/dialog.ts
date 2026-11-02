@@ -3,6 +3,7 @@
 import { el } from '../utils/dom';
 import { button } from './button';
 import { openOverlay } from './overlay';
+import { t } from '../services/i18n';
 
 export interface DialogAction<T extends string> {
   id: T;
@@ -31,6 +32,15 @@ export function choose<T extends string>(title: string, body: string | null, act
     }
     close = openOverlay(box, { onBack: () => finish(null) });
   });
+}
+
+/** Confirmação de "apagar histórico" (Configurações e tela de Histórico). */
+export async function confirmClearHistory(): Promise<boolean> {
+  const r = await choose(t('history.clearTitle'), t('history.clearBody'), [
+    { id: 'yes', label: t('history.clearGo'), danger: true },
+    { id: 'no', label: t('common.cancel'), primary: true },
+  ]);
+  return r === 'yes';
 }
 
 /** Aviso simples com um botão. */

@@ -31,8 +31,9 @@
 /* ── TV ao vivo ── */
 .live-head { margin-bottom: var(--sp-3); align-items: center; }
 .live-cols { display: flex; }
-.vl-cats { width: 440px; flex: none; margin-right: var(--sp-4); }
-.vl-chans { width: 720px; flex: none; margin-right: var(--sp-4); }
+.vl-cats { width: 340px; flex: none; margin-right: var(--sp-4); }
+/* lista de canais mais estreita: sobra espaço para a mini janela em 16:9 */
+.vl-chans { width: 600px; flex: none; margin-right: var(--sp-4); }
 .live-empty { margin: 160px auto 0; text-align: center; }
 
 .cat-icon { width: 28px; height: 28px; margin-right: var(--sp-2); color: var(--c-cyan); }
@@ -59,7 +60,7 @@
 .lp-video {
   position: relative;
   width: 100%;
-  height: 300px;
+  height: 352px; /* ~16:9 na largura do painel (≈628 px) */
   border-radius: var(--r-lg);
   background: var(--c-bg-2);
   border: 1px solid var(--c-border);
@@ -140,3 +141,30 @@
   overflow: hidden;
 }
 .series .pending-text { margin-top: var(--sp-4); }
+
+/* ── grade de cartazes (Filmes/Séries) ── */
+.vod .vl-cats { width: 340px; }
+.vl-grid { width: 832px; padding: 0 6px; }
+.vl-grid .vl-cell { left: auto; right: auto; padding: 10px 8px 0; flex-direction: column; align-items: stretch; border-radius: var(--r-md); white-space: normal; }
+.vg-frame {
+  position: relative;
+  height: 210px;
+  border-radius: var(--r-sm);
+  background: var(--c-bg-2);
+  overflow: hidden;
+}
+.vg-poster { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vg-rating {
+  position: absolute; right: 6px; top: 6px;
+  padding: 0 8px; border-radius: 6px;
+  background: rgba(4, 6, 20, 0.8); color: #f2c230;
+  font-size: var(--fs-xs);
+}
+.vg-rating:empty { display: none; }
+.vg-name { margin-top: 6px; font-size: var(--fs-xs); line-height: 1.2; height: 2.4em; overflow: hidden; text-align: center; }
+.vl-grid .vl-cell.sel { background: var(--c-surface-hi); }
+.vl-grid.is-focused .vl-cell.sel { background: var(--c-cyan); color: #04121a; }
+.vl-grid.vl .vl-row.loading::after { display: none; }
+.vp-poster-box.small { height: 260px; }
+.live-head-actions { display: flex; }
+.live-head-actions .btn { margin-left: var(--sp-2); }

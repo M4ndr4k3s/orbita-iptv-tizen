@@ -112,3 +112,19 @@ body.playing #backdrop { display: none; }
   padding: 6px 18px;
   border-radius: 8px;
 }
+
+/* botões na tela (OSD): alternativa às teclas coloridas */
+.osd-bar { display: flex; margin-top: var(--sp-2); }
+.osd-btn {
+  display: flex; align-items: center;
+  height: 64px; padding: 0 var(--sp-3); margin-right: var(--sp-2);
+  border-radius: var(--r-md);
+  background: rgba(16, 18, 42, 0.85);
+  border: 1px solid var(--c-border);
+  font-size: var(--fs-sm);
+}
+.osd-btn .icon { width: 28px; height: 28px; margin-right: var(--sp-1); }
+.osd.bar-mode .osd-btn.sel { background: var(--c-cyan); color: #04121a; border-color: transparent; }
+/* botões só ficam ativos depois do OK (o OSD também aparece sozinho) */
+.osd-bar { opacity: 0.55; }
+.osd.bar-mode .osd-bar { opacity: 1; }
