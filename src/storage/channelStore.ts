@@ -285,6 +285,12 @@ export async function searchIds(gk: string, term: string, limit = 300, kind: 'li
   return out.sort();
 }
 
+/** Títulos adicionados mais recentemente (Xtream), gravados na importação. */
+export async function recentIds(gk: string, kind: 'movie' | 'series'): Promise<string[]> {
+  const idx = await loadSearchIndex(gk);
+  return ((kind === 'movie' ? idx.recentMovies : idx.recentSeries) || []).slice();
+}
+
 /** tvg-id e nome de cada canal ao vivo, para casar com o guia na busca de programas. */
 export async function liveRefs(gk: string): Promise<Array<{ id: string; tvgId?: string; name: string }>> {
   const db = await openDb();

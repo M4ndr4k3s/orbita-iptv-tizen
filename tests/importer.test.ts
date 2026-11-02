@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ChannelBuilder, type ImportSink } from '../src/playlist/importer';
+import { ChannelBuilder, trackRecent, type ImportSink } from '../src/playlist/importer';
 import { M3uParser } from '../src/playlist/m3uParser';
 import type { Channel, Group } from '../src/playlist/model';
 
@@ -76,7 +76,7 @@ describe('ChannelBuilder (índice de busca)', () => {
     const text = '#EXTM3U\n#EXTINF:-1 tvg-chno="5",Notícias HD\nhttp://s/live/1.ts\n#EXTINF:-1,Filme\nhttp://s/movie/u/p/2.mp4\n';
     for (const e of [...p.push(text), ...p.end()]) await b.addM3u(e);
     await b.finish({ importedAt: 0, bytes: 0 });
-    expect(saved).toEqual({ gk: 's:g', ids: ['s:g:00000001'], q: ['noticias hd 5'], movies: ['s:g:00000002'], series: [], movieQ: ['filme'], seriesQ: [] });
+    expect(saved).toEqual({ gk: 's:g', ids: ['s:g:00000001'], q: ['noticias hd 5'], movies: ['s:g:00000002'], series: [], movieQ: ['filme'], seriesQ: [], recentMovies: [], recentSeries: [] });
   });
 });
 
@@ -94,5 +94,18 @@ describe('ChannelBuilder (Xtream)', () => {
     expect(sink.channels[0]).toMatchObject({ xid: 101, num: 3, group: 'Esportes', tvgId: 'espn.br', archiveDays: 7, logo: 'http://l/e.png' });
     expect(sink.channels[0].url).toBeUndefined();
     expect(stats).toMatchObject({ duplicates: 1, skipped: 1, groups: 1 });
+  });
+});
+
+describe('trackRecent (adicionados recentemente)', () => {
+  it('mantém só os N mais novos, do mais novo ao mais velho', () => {
+    const l: Array<{ id: string; added: number }> = [];
+    for (const [id, a] of [['a', 5], ['b', 9], ['c', 1], ['d', 7], ['e', 3]] as Array<[string, number]>) trackRecent(l, id, a, 3);
+    expect(l.map((x) => x.id)).toEqual(['b', 'd', 'a']);
+  });
+  it('mais velho que o último com a lista cheia não entra', () => {
+    const l = [{ id: 'x', added: 10 }, { id: 'y', added: 8 }];
+    trackRecent(l, 'z', 2, 2);
+    expect(l.map((x) => x.id)).toEqual(['x', 'y']);
   });
 });

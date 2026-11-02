@@ -178,6 +178,7 @@ export class SeriesScreen implements Screen {
           url,
           key: this.key(e),
           durationMs: e.durationSec ? e.durationSec * 1000 : undefined,
+          card: { s: this.source.id, k: 'episode', x: e.id, n: this.series.name, d: t('series.ep', { s: e.season, e: e.num }) + ' · ' + e.title, l: this.series.logo, e: e.ext, p: this.series.xid },
         },
         next >= 0
           ? () => {

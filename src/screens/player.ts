@@ -5,8 +5,6 @@ import { el, clear } from '../utils/dom';
 import type { Screen } from '../app/screen';
 import type { AppContext } from '../app/context';
 import type { RemoteKey } from '../navigation/keys';
-import { focus } from '../navigation/focus';
-import { button } from '../components/button';
 import { toast } from '../components/toast';
 import { icon } from '../components/icons';
 import { getEngine } from '../player/engineFactory';
@@ -85,7 +83,8 @@ export class PlayerScreen implements Screen {
   private osdLogo: HTMLImageElement;
   private status: HTMLElement;
   private numberBox: HTMLElement;
-  private errorBox: HTMLElement;
+  /** canal não abriu: aviso no OSD (sem janela de erro), ↑/↓ trocam e OK tenta de novo */
+  private failed = false;
   private onVisibility = () => {
     if (document.hidden) this.engine.suspend();
     else this.engine.restore();
@@ -139,8 +138,7 @@ export class PlayerScreen implements Screen {
       el('div', { class: 'osd-bottom' }, [this.status, this.progRow, this.bar.root, el('div', { class: 'osd-hint', text: t('player.hint') })]),
     ]);
     this.numberBox = el('div', { class: 'osd-digits hidden' });
-    this.errorBox = el('div', { class: 'player-error hidden' });
-    this.root = el('div', { class: 'screen player' }, [this.subs.root, this.osd, this.numberBox, this.errorBox]);
+    this.root = el('div', { class: 'screen player' }, [this.subs.root, this.osd, this.numberBox]);
   }
 
   mount(): void {
@@ -175,14 +173,6 @@ export class PlayerScreen implements Screen {
   }
 
   onKey(key: RemoteKey): boolean {
-    // com o painel de erro aberto, setas/OK navegam nos botões
-    if (!this.errorBox.classList.contains('hidden')) {
-      if (key.action === 'chUp' || key.action === 'chDown') {
-        this.zap(key.action === 'chUp' ? 1 : -1);
-        return true;
-      }
-      return false;
-    }
     switch (key.action) {
       case 'chUp':
       case 'up':
@@ -198,6 +188,7 @@ export class PlayerScreen implements Screen {
       case 'ok':
         // OK: mostra o OSD; com ele aberto, aciona o botão escolhido
         if (this.digits) this.commitDigits();
+        else if (this.failed && !this.barArmed) this.open(this.current);
         else if (this.barArmed && this.osd.classList.contains('visible')) this.bar.activate();
         else this.armBar();
         return true;
@@ -250,7 +241,7 @@ export class PlayerScreen implements Screen {
     const st = this.session.state.status;
     if (st === 'paused' && Date.now() - this.pausedAt > LIVE_RESUME_MAX_MS) this.open(this.current, true);
     else {
-      if (st === 'playing') this.pausedAt = Date.now();
+      if (st === 'playing' || st === 'buffering') this.pausedAt = Date.now();
       this.session.togglePause();
     }
     this.showOsd();
@@ -438,34 +429,29 @@ export class PlayerScreen implements Screen {
     if (s.status === 'connecting') text = t('player.connecting');
     else if (s.status === 'buffering') text = t('player.buffering', { p: s.percent });
     else if (s.status === 'paused') text = t('player.paused');
-    else if (s.status === 'retrying') text = t('player.retrying', { a: s.attempt + 1, m: s.maxAttempts });
+    // reconectando: as tentativas acontecem por trás, sem contador na tela
+    else if (s.status === 'retrying') text = t('player.connecting');
+    if (s.status === 'failed') return this.showError(failMessage(s.error || ''));
     this.status.textContent = text;
-    this.status.classList.toggle('warn', s.status === 'retrying');
+    this.status.classList.remove('warn');
     this.bar.setLabel('pause', t(s.status === 'paused' ? 'osd.play' : 'osd.pause'));
     // problemas mantêm o OSD visível; tocando normalmente ele some sozinho
-    if (s.status === 'retrying' || s.status === 'paused') this.showOsd(true);
-    if (s.status === 'failed') this.showError(failMessage(s.error || ''));
+    if (s.status === 'paused') this.showOsd(true);
   }
 
+  /** Falha: aviso no OSD em vez de uma janela que prende o foco. */
   private showError(msg: string): void {
-    clear(this.errorBox);
-    const actions = el('div', { class: 'dlg-actions' }, [
-      button(t('player.retry'), { icon: 'live', variant: 'primary', autofocus: true, onClick: () => this.open(this.current) }),
-      button(t('player.next'), { onClick: () => this.zap(1) }),
-      button(t('player.back'), { icon: 'back', onClick: () => this.ctx.back() }),
-    ]);
-    this.errorBox.appendChild(el('h2', { class: 'dlg-title', text: t('player.fail.title') }));
-    this.errorBox.appendChild(el('p', { class: 'dlg-body', text: msg }));
-    this.errorBox.appendChild(actions);
-    this.errorBox.classList.remove('hidden');
+    this.failed = true;
+    this.status.textContent = msg + ' · ' + t('player.failHint');
+    this.status.classList.add('warn');
     this.showOsd(true);
-    focus.focus(actions.querySelector<HTMLElement>('[data-autofocus]'));
   }
 
   private hideError(): void {
-    if (this.errorBox.classList.contains('hidden')) return;
-    this.errorBox.classList.add('hidden');
-    clear(this.errorBox);
+    if (!this.failed) return;
+    this.failed = false;
+    this.status.textContent = '';
+    this.status.classList.remove('warn');
   }
 
   private showOsd(sticky = false): void {
@@ -501,7 +487,7 @@ export class PlayerScreen implements Screen {
       session: this.session.state,
       channel: { num: this.current.num, name: this.current.name, order: this.current.order },
       osdVisible: this.osd.classList.contains('visible'),
-      error: this.errorBox.classList.contains('hidden') ? null : this.errorBox.textContent,
+      error: this.failed ? this.status.textContent : null,
       info: this.engine.info(),
     };
   }

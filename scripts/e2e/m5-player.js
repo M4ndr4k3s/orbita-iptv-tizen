@@ -119,18 +119,22 @@ window.__E2E__ = (async () => {
   check('canal 3 selecionado', P().channel.num === 3, P().channel);
   const tf = Date.now();
   let sawRetry = false;
+  let sawCounter = false;
   await until(() => {
     if (status() === 'retrying') sawRetry = true;
+    // a tela não mostra mais "Reconectando 2/3": só "Conectando…"
+    if (/\d\s*\/\s*\d|Reconectando/.test(document.querySelector('.osd-status') ? document.querySelector('.osd-status').textContent : '')) sawCounter = true;
     return status() === 'failed';
   }, 90000);
   metrics.ateErroMs = Date.now() - tf;
   check('tentou reconectar antes de desistir', sawRetry, null);
-  check('mostra erro claro com ações', status() === 'failed' && /Não foi possível reproduzir/.test(P().error || ''), P().error);
-  check('foco no botão Tentar novamente', /Tentar novamente/.test(document.querySelector('.is-focused').textContent), document.querySelector('.is-focused').textContent);
-  await activate('Próximo canal');
+  check('não mostra contador de tentativas', !sawCounter, null);
+  check('falha vira aviso no OSD, sem janela', status() === 'failed' && /troca de canal/.test(P().error || '') && !document.querySelector('.player-error'), P().error);
+  // ▲ troca de canal direto, sem precisar sair de um diálogo
+  press('chUp');
   await until(() => P().channel.num === 4 && status() !== 'failed', 10000);
   await waitSettled();
-  check('Próximo canal sai do erro e toca', status() === 'playing' && P().channel.num === 4, P());
+  check('▲ sai da falha e toca o próximo', status() === 'playing' && P().channel.num === 4, P());
   press('back'); await sleep(500);
 
   // volta a lista de teste real como ativa e remove a do mock

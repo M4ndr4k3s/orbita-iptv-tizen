@@ -15,6 +15,7 @@ import { HomeScreen } from '../screens/home';
 import { PendingScreen } from '../screens/pending';
 import { AboutScreen } from '../screens/about';
 import { SearchScreen } from '../screens/search';
+import { RecordingsScreen } from '../screens/recordings';
 import { watchRecorder } from '../components/recordActions';
 import { ListsScreen } from '../screens/lists';
 import { LiveScreen } from '../screens/live';
@@ -89,6 +90,7 @@ class App implements AppContext {
     if (id === 'lists') return new ListsScreen(this);
     if (id === 'settings') return new SettingsScreen(this);
     if (id === 'search') return new SearchScreen(this);
+    if (id === 'downloads') return new RecordingsScreen();
     // Favoritos e Histórico são a TV ao vivo aberta na categoria correspondente
     if (id === 'live') return new LiveScreen(this, 'all');
     if (id === 'guide') return new LiveScreen(this, 'guide');

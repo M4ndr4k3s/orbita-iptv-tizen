@@ -36,3 +36,56 @@ describe('urlExt / recordable', () => {
     expect(recordable('rtsp://cam/1')).toBe(false);
   });
 });
+
+describe('recorder: pausar, continuar e cancelar downloads', () => {
+  type Cb = { onprogress?: (i: number, r: number, t: number) => void; onfailed?: (i: number, e: { name: string }) => void };
+  const calls: string[] = [];
+  let cbs: Cb = {};
+  const fakeTizen = {
+    DownloadRequest: function (this: Record<string, string>, url: string, dir: string, name: string) {
+      this.url = url; this.dir = dir; this.name = name;
+    },
+    download: {
+      start: (_r: unknown, cb: Cb) => { cbs = cb; calls.push('start'); return 7; },
+      cancel: (id: number) => calls.push('cancel ' + id),
+      pause: (id: number) => calls.push('pause ' + id),
+      resume: (id: number) => calls.push('resume ' + id),
+    },
+    filesystem: {
+      listStorages: (ok: (l: Array<{ label: string; type: string; state: string }>) => void) => ok([{ label: 'removable_sda1', type: 'EXTERNAL', state: 'MOUNTED' }]),
+      resolve: (_l: string, ok: (d: { fullPath: string }) => void) => ok({ fullPath: '/opt/media/USBDriveA1' }),
+      createDirectory: (_p: string, _m: boolean, ok: () => void) => ok(),
+      deleteFile: (p: string, ok: () => void) => { calls.push('delete ' + p); ok(); },
+    },
+  };
+  (globalThis as unknown as { window: unknown }).window = { tizen: fakeTizen };
+
+  it('grava no caminho real do pendrive, pausa, continua e cancela apagando o pedaço', async () => {
+    const { recorder } = await import('../src/services/recorder');
+    const r = await recorder.start('download', 'filme:1', 'Filme', 'http://s/movie/u/p/1.mkv');
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.job.dir).toBe('/opt/media/USBDriveA1/Orbita');
+    expect(recorder.pause(r.job.id)).toBe(true);
+    expect(r.job.state).toBe('paused');
+    expect(recorder.resume(r.job.id)).toBe(true);
+    expect(r.job.state).toBe('running');
+    recorder.stop(r.job.id);
+    expect(r.job.state).toBe('stopped');
+    expect(calls).toEqual(['start', 'pause 7', 'resume 7', 'cancel 7', 'delete /opt/media/USBDriveA1/Orbita/' + r.job.fileName]);
+  });
+
+  it('download que caiu pode continuar; gravação não pausa', async () => {
+    const { recorder } = await import('../src/services/recorder');
+    calls.length = 0;
+    const r = await recorder.start('download', 'filme:2', 'Outro', 'http://s/movie/u/p/2.mp4');
+    if (!r.ok) throw new Error('não começou');
+    cbs.onfailed!(7, { name: 'NetworkError' });
+    expect(r.job.state).toBe('failed');
+    expect(recorder.resume(r.job.id)).toBe(true);
+    expect(r.job.state).toBe('running');
+    const rec = await recorder.start('record', 'canal:1', 'Canal', 'http://s/live/u/p/1.ts');
+    if (!rec.ok) throw new Error('não gravou');
+    expect(recorder.pause(rec.job.id)).toBe(false);
+  });
+});

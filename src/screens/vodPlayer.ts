@@ -11,7 +11,7 @@ import { choose } from '../components/dialog';
 import { getEngine } from '../player/engineFactory';
 import { PlaybackSession, type SessionState } from '../player/session';
 import type { PlayerEngine } from '../player/engine';
-import { resume } from '../storage/resume';
+import { resume, type ResumeCard } from '../storage/resume';
 import { fmtTime } from '../services/vodInfo';
 import { t } from '../services/i18n';
 import { openPlayerOptions, SubtitleView } from '../components/playerOptions';
@@ -30,6 +30,8 @@ export interface VodItem {
   key: string;
   /** duração informada pelo catálogo, até o player saber a real */
   durationMs?: number;
+  /** cartão para "Continuar assistindo" na tela inicial (só Xtream) */
+  card?: ResumeCard;
 }
 
 const OSD_MS = 5000;
@@ -275,7 +277,7 @@ export class VodPlayerScreen implements Screen {
     if (!this.started) return;
     this.lastSave = Date.now();
     const st = this.session.state;
-    if (st.positionMs > 0) resume.save(this.item.key, st.positionMs, this.durationMs());
+    if (st.positionMs > 0) resume.save(this.item.key, st.positionMs, this.durationMs(), Date.now(), this.item.card);
   }
 
   private render(s: SessionState): void {
@@ -287,7 +289,7 @@ export class VodPlayerScreen implements Screen {
     if (s.status === 'connecting') text = t('player.connecting');
     else if (s.status === 'buffering') text = t('player.buffering', { p: s.percent });
     else if (s.status === 'paused') text = t('player.paused');
-    else if (s.status === 'retrying') text = t('player.retrying', { a: s.attempt + 1, m: s.maxAttempts });
+    else if (s.status === 'retrying') text = t('player.connecting'); // tentativas por trás, sem contador
     this.status.textContent = text;
     this.status.classList.toggle('warn', s.status === 'retrying');
     this.buttons.setLabel('pause', t(s.status === 'paused' ? 'osd.play' : 'osd.pause'));

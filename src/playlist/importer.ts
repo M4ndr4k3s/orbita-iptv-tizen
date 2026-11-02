@@ -18,6 +18,21 @@ export interface SearchIndex {
   /** texto normalizado de filmes e séries (mesma posição de movies/series) para a busca global */
   movieQ?: string[];
   seriesQ?: string[];
+  /** Xtream: ids dos títulos adicionados mais recentemente (tela inicial), do mais novo ao mais velho */
+  recentMovies?: string[];
+  recentSeries?: string[];
+}
+
+/** Quantos "adicionados recentemente" guardar por tipo. */
+export const RECENT_MAX = 20;
+
+/** Mantém os RECENT_MAX maiores `added` (lista ordenada do mais novo ao mais velho). */
+export function trackRecent(list: Array<{ id: string; added: number }>, id: string, added: number, max = RECENT_MAX): void {
+  if (list.length >= max && added <= list[list.length - 1].added) return;
+  let i = list.length;
+  while (i > 0 && list[i - 1].added < added) i--;
+  list.splice(i, 0, { id, added });
+  if (list.length > max) list.pop();
 }
 
 export interface ImportSink {
@@ -50,6 +65,10 @@ export interface XtreamStream {
   tv_archive_duration?: number | string;
   container_extension?: string;
   rating?: number | string;
+  /** filmes: data em que entrou no servidor (unix, segundos) */
+  added?: number | string;
+  /** séries: última atualização (unix, segundos) */
+  last_modified?: number | string;
 }
 
 const toInt = (v: unknown): number | null => {
@@ -72,6 +91,8 @@ export class ChannelBuilder {
   private movieIds: string[] = [];
   private seriesIds: string[] = [];
   private movieQ: string[] = [];
+  private recentMovies: Array<{ id: string; added: number }> = [];
+  private recentSeries: Array<{ id: string; added: number }> = [];
   private seriesQ: string[] = [];
   private order = 0;
   private liveNum = 0;
@@ -146,6 +167,7 @@ export class ChannelBuilder {
       rating: parseRating(s.rating),
       num: kind === 'live' && num && num > 0 && num < 100000 ? num : 0,
       dedupeKey: key,
+      added: kind === 'live' ? undefined : toInt(kind === 'movie' ? s.added : s.last_modified) || undefined,
     });
   }
 
@@ -155,7 +177,7 @@ export class ChannelBuilder {
     const groups = Array.from(this.groups.values()).filter((g) => g.count > 0);
     await this.sink.putGroups(groups);
     if (this.sink.putSearchIndex) {
-      await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ, movies: this.movieIds, series: this.seriesIds, movieQ: this.movieQ, seriesQ: this.seriesQ });
+      await this.sink.putSearchIndex({ gk: this.gk, ids: this.searchIds, q: this.searchQ, movies: this.movieIds, series: this.seriesIds, movieQ: this.movieQ, seriesQ: this.seriesQ, recentMovies: this.recentMovies.map((r) => r.id), recentSeries: this.recentSeries.map((r) => r.id) });
     }
     return {
       gk: this.gk,
@@ -183,7 +205,7 @@ export class ChannelBuilder {
     return g;
   }
 
-  private async push(c: Omit<Channel, 'id' | 'gk' | 'order' | 'q'> & { dedupeKey: string }): Promise<void> {
+  private async push(c: Omit<Channel, 'id' | 'gk' | 'order' | 'q'> & { dedupeKey: string; added?: number }): Promise<void> {
     if (this.order >= this.maxItems) {
       this.truncated = true;
       this.stats.skipped++;
@@ -216,6 +238,8 @@ export class ChannelBuilder {
     if (c.ext) ch.ext = c.ext;
     if (c.archiveDays) ch.archiveDays = c.archiveDays;
     if (c.rating) ch.rating = c.rating;
+    // a data não vai para o item (são dezenas de milhares): só os mais novos são lembrados
+    if (c.added && ch.kind !== 'live') trackRecent(ch.kind === 'movie' ? this.recentMovies : this.recentSeries, ch.id, c.added);
     if (ch.kind === 'live') {
       this.searchIds.push(ch.id);
       this.searchQ.push(ch.q + ' ' + ch.num);

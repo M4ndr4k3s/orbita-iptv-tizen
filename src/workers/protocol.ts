@@ -25,6 +25,8 @@ export interface RpcMethods {
   'channels.search': { args: [string, string, string[]?]; result: string[] };
   /** ids de filmes ou séries de uma categoria (ou de todas com null) */
   'vod.ids': { args: [string, 'movie' | 'series', string | null, string[]?]; result: string[] };
+  /** filmes ou séries adicionados mais recentemente (Xtream; vazio sem a data) */
+  'vod.recent': { args: [string, 'movie' | 'series', string[]?]; result: string[] };
   /** busca de filmes ou séries por nome */
   'vod.search': { args: [string, 'movie' | 'series', string, string[]?]; result: string[] };
   /** programas do guia pelo título (no ar ou nas próximas horas), já casados com canais da lista */

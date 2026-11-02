@@ -5,7 +5,7 @@
 // parar = cancelar, e o cancelamento mantém o que já foi gravado (conferido na TV).
 
 export type JobKind = 'download' | 'record';
-export type JobState = 'running' | 'done' | 'stopped' | 'failed';
+export type JobState = 'running' | 'paused' | 'done' | 'stopped' | 'failed';
 
 export interface Job {
   id: number;
@@ -37,6 +37,8 @@ interface DownloadCallbacks {
 interface TizenDownload {
   start(req: unknown, cb?: DownloadCallbacks): number;
   cancel(id: number): void;
+  pause(id: number): void;
+  resume(id: number): void;
 }
 interface TizenLike {
   DownloadRequest: new (url: string, destination: string, fileName: string) => unknown;
@@ -187,7 +189,15 @@ class RecorderService {
     const job = this.jobs.find((j) => j.id === id);
     const nid = this.nativeIds.get(id);
     const t = tz();
-    if (!job || job.state !== 'running' || nid == null || !t) return;
+    if (!job || (job.state !== 'running' && job.state !== 'paused' && job.state !== 'failed') || nid == null || !t) return;
+    if (job.state === 'failed') {
+      // já caiu: só apaga o pedaço e tira a chance de continuar
+      this.nativeIds.delete(id);
+      job.state = 'stopped';
+      if (job.kind === 'download') this.remove(job);
+      this.emit();
+      return;
+    }
     try {
       t.download.cancel(nid);
     } catch {
@@ -197,11 +207,46 @@ class RecorderService {
     this.finish(job, 'stopped');
   }
 
+  /** Download: pausa mantendo o que já baixou (Continuar retoma do mesmo ponto). */
+  pause(id: number): boolean {
+    const job = this.jobs.find((j) => j.id === id);
+    const nid = this.nativeIds.get(id);
+    const t = tz();
+    if (!job || job.kind !== 'download' || job.state !== 'running' || nid == null || !t) return false;
+    try {
+      t.download.pause(nid);
+    } catch {
+      return false;
+    }
+    job.state = 'paused';
+    this.emit();
+    return true;
+  }
+
+  /** Continua um download pausado ou que caiu no meio (rede, servidor). */
+  resume(id: number): boolean {
+    const job = this.jobs.find((j) => j.id === id);
+    const nid = this.nativeIds.get(id);
+    const t = tz();
+    if (!job || job.kind !== 'download' || (job.state !== 'paused' && job.state !== 'failed') || nid == null || !t) return false;
+    if (this.jobs.filter((j) => j.state === 'running').length >= MAX_RUNNING) return false;
+    try {
+      t.download.resume(nid);
+    } catch {
+      return false;
+    }
+    job.state = 'running';
+    job.error = undefined;
+    this.emit();
+    return true;
+  }
+
   private finish(job: Job, state: JobState, error?: string): void {
-    if (job.state !== 'running') return;
+    if (job.state !== 'running' && job.state !== 'paused') return;
     job.state = state;
     job.error = error;
-    this.nativeIds.delete(job.id);
+    // download que caiu: guarda o id nativo para o Continuar retomar do mesmo ponto
+    if (!(state === 'failed' && job.kind === 'download')) this.nativeIds.delete(job.id);
     // download interrompido não serve para nada: apaga o arquivo pela metade
     if (state === 'stopped' && job.kind === 'download') this.remove(job);
     this.emit();

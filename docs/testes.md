@@ -209,7 +209,10 @@ Não testado: troca entre várias faixas de áudio (o stream de teste só tem um
 | `m11-search.js` (busca global: teclado, seções canais/guia/filmes/séries, rolagem, abrir canal, sem resultado) | **TV** | 10/10 no mock; 8/8 na lista real (2,8 mil canais, 37 mil filmes, 10 mil séries): 1ª busca 7,7 s (guia; o resto 0,4 s), seguintes ~80 ms |
 | `m12-stability.js` (zapping longo no player ao vivo, memória e DOM) | **TV** | 6/6 — 100 trocas em 11,8 min, 100 canais tocando, 0 falhas; heap exato após GC 2,69 → 2,72 MB em 40 trocas, nós (360) e listeners (51) iguais |
 | `themes.js` (tema em Configurações: 3 opções, aplica sem recarregar, salva, volta ao Preto) | **TV** | 6/6 — tokens conferidos: Cinema #141414/#e50914, Azul noite #0f171e/#1a98ff, Preto #000/#3dd6f5 |
-| `usb-download.js` (Baixar nos detalhes do filme, progresso em Gravações e downloads, parar apaga o pedaço) | **TV** | 5/5 — pendrive em `/opt/media/USBDriveA1` |
+| `usb-download.js` (Baixar nos detalhes do filme; menu Downloads: pausar, continuar, cancelar apaga o pedaço) | **TV** | 7/7 — pendrive em `/opt/media/USBDriveA1` |
+| `home.js` (Início estilo streaming: sem atalhos, carrosséis girando e parando com foco, destaque trocando, imagens sob demanda) | **TV** | 9/9 — 4 carrosséis na lista real; 39 de 45 imagens carregadas |
+| `home-series.js` (série aparece uma vez em Continuar assistindo e abre as temporadas; canais em cartão quadrado) | **TV** | 4/4 |
+| `m5-player.js` (canal quebrado: sem contador de tentativas, aviso no OSD sem janela, ▲ troca direto) | **TV** | 20/20 |
 | `m10-language.js` (pt-BR → English → pt-BR) | **TV** | menu e `lang` trocados após recarregar |
 
 Medições na TV: PBKDF2 com 100 mil iterações ~750 ms; salvar PIN ~1,2 s e conferir ~1,6 s (com o aviso "Conferindo…").

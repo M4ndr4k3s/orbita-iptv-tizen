@@ -88,3 +88,8 @@
 
 - **Causa:** a navegação espacial aceitava alvos na diagonal. Na última linha de uma lista ou da grade, o ↓ ia para o menu lateral ou para as categorias.
 - **Solução:** ↑/↓ só vai para alvos na mesma coluna. A única exceção é entre um botão do cabeçalho da tela e o conteúdo logo abaixo; nunca para o menu lateral.
+
+## Pausar e continuar logo depois de pausar reabria o canal
+
+- **Causa:** a pausa durante o buffering não registrava a hora da pausa (`pausedAt` = 0). Ao continuar, o app achava que a pausa tinha passado de 1 minuto e reabria o canal para voltar ao vivo.
+- **Solução:** registrar a hora também quando a pausa acontece em buffering. Pego pelo m5.

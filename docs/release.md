@@ -38,7 +38,18 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 ## Versão
 
-**1.0.1** em `package.json` e `tizen/config.xml` (tags `v1.0.0` e `v1.0.1`). Atualize os dois juntos na próxima versão.
+**1.1.0** em `package.json` e `tizen/config.xml` (tags `v1.0.0`, `v1.0.1` e `v1.1.0`). Atualize os dois juntos na próxima versão.
+
+### Pacote 1.1.0 (2026-11-02)
+
+- `dist/Orbita-1.1.0.wgt`, SHA-256 `809f8134f0036b635dd2da73d1fa65384a7fc568b10de8b8b8558bb3d560369f`.
+- **Novidades:**
+  - Início no estilo streaming: destaque que alterna entre os filmes novos e carrosséis que andam sozinhos (Continuar assistindo com uma série por cartão, canais vistos e favoritos em cartões quadrados, filmes e séries adicionados recentemente);
+  - menu Downloads com Pausar, Continuar e Cancelar.
+- **Correções:** canal com falha vira um aviso no OSD sem contador de tentativas, e ▲/▼ troca de canal direto; pausa durante o buffering.
+- **Requer atualizar a lista uma vez:** os "adicionados recentemente" saem da data informada pelo Xtream, guardada só a partir desta versão.
+- **Checagens:** 0 credenciais no pacote e no repositório; sem sourcemap e sem hooks de teste; 155 testes unitários; `npm audit` sem vulnerabilidades.
+- **Na TV:** home 9/9, home-series 4/4, ux-feedback 31/31, usb-download 7/7, m5 20/20.
 
 ### Pacote 1.0.1 (2026-11-02)
 

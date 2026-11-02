@@ -41,3 +41,36 @@
 /* ── Sobre ── */
 .about { display: flex; flex-direction: column; }
 .about-actions { margin-top: var(--sp-4); }
+
+/* ── Início no estilo streaming: destaque + carrosséis ── */
+.screen.home { padding-top: 0; }
+.home-scroll { transition: transform var(--t-med) ease-out; will-change: transform; padding-top: var(--sp-6); }
+.home-hero { display: flex; align-items: center; min-height: 440px; margin-top: 0; padding: var(--sp-6); position: relative; overflow: hidden; }
+.home-hero-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.home-hero .hero-title { font-size: var(--fs-xxl); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-hero-poster { width: 260px; height: 390px; object-fit: cover; border-radius: var(--r-md); margin-left: var(--sp-6); flex: none; }
+.home-list-name { margin-top: var(--sp-3); color: var(--c-text-3); font-size: var(--fs-xs); }
+.home-rails { padding-bottom: var(--sp-8); }
+.prail { margin-top: var(--sp-6); }
+.prail-viewport { overflow: hidden; padding: 16px 0 24px; margin: -16px 0 -24px; }
+.prail-track { display: flex; transition: transform 600ms ease-out; will-change: transform; }
+.prail-card { flex: none; margin-right: 24px; border-radius: var(--r-sm); transition: transform var(--t-fast); }
+.prail-poster .prail-card { width: 180px; }
+.prail-wide .prail-card { width: 260px; }
+.prail-frame { position: relative; overflow: hidden; border-radius: var(--r-sm); background: var(--c-bg-2); display: flex; align-items: center; justify-content: center; }
+.prail-poster .prail-frame { height: 270px; } /* 2:3 */
+.prail-wide .prail-frame { height: 146px; } /* 16:9 */
+.prail-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.prail-wide .prail-img { object-fit: contain; padding: 16px; box-sizing: border-box; }
+.prail-ph { font-size: 64px; font-weight: 700; color: var(--c-text-3); }
+.prail-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(255, 255, 255, 0.25); }
+.prail-fill { height: 100%; background: var(--c-accent); }
+.prail-name { margin-top: 8px; font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prail-sub { font-size: var(--fs-xs); color: var(--c-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.2em; }
+.prail-card.is-focused { transform: scale(1.06); }
+.prail-card.is-focused .prail-frame { box-shadow: var(--focus-ring); }
+/* canais: cartão quadrado com o logo centralizado e inteiro (logos têm formatos variados) */
+.prail-square .prail-card { width: 200px; }
+.prail-square .prail-frame { height: 200px; }
+.prail-square .prail-img { object-fit: contain; padding: 24px; box-sizing: border-box; }
+.prail-square .prail-name, .prail-square .prail-sub { text-align: center; }

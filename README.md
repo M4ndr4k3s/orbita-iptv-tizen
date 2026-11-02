@@ -2,7 +2,7 @@
 
 Player IPTV para Samsung Smart TV (Tizen 6.0+). Toca listas M3U/M3U8, contas Xtream Codes e guias XMLTV fornecidos pelo próprio usuário. O app não traz conteúdo nenhum.
 
-**Versão 1.0.1.** Pacote: `npm run release` → `build/Orbita.wgt` (cópia em `dist/`, fora do Git). Instalação e checagens em [docs/release.md](docs/release.md).
+**Versão 1.1.0.** Pacote: `npm run release` → `build/Orbita.wgt` (cópia em `dist/`, fora do Git). Instalação e checagens em [docs/release.md](docs/release.md).
 
 ## Funcionalidades
 
@@ -15,7 +15,8 @@ Player IPTV para Samsung Smart TV (Tizen 6.0+). Toca listas M3U/M3U8, contas Xtr
   - opções: áudio, legendas, proporção e buffer;
   - reconexão automática.
 - **Busca global:** canais, filmes, séries e programas do guia.
-- **Gravação e download:** canal ao vivo (TS) e filmes ou episódios, para a pasta `Orbita` do pendrive.
+- **Início:** destaque e carrosséis automáticos: continuar assistindo, canais vistos, favoritos, filmes e séries adicionados recentemente.
+- **Gravação e download:** canal ao vivo (TS) e filmes ou episódios, para a pasta `Orbita` do pendrive. O menu Downloads tem Pausar, Continuar e Cancelar.
 - **Configurações:**
   - temas Preto, Cinema e Azul noite;
   - idiomas pt-BR, en e es;

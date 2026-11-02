@@ -161,3 +161,43 @@ describe('importação Xtream com VOD', () => {
     expect(streamUrl({ ...base0, kind: 'series', xid: 5 }, s)).toBe('http://h/series/a%20b/c/5.mp4');
   });
 });
+
+describe('ResumeStore: Continuar assistindo', () => {
+  const mem = () => { const m: Record<string, string> = {}; return { getItem: (k: string) => m[k] ?? null, setItem: (k: string, v: string) => { m[k] = v; } }; };
+  const card = (x: number, s = 'src1') => ({ s, k: 'movie' as const, x, n: 'Filme ' + x, l: 'http://img/' + x + '.jpg' });
+  it('lista só da fonte, com cartão, mais recentes primeiro', () => {
+    const r = new ResumeStore(mem());
+    r.save('a', 120000, 3600000, 1000, card(1));
+    r.save('b', 120000, 3600000, 3000, card(2));
+    r.save('c', 120000, 3600000, 2000, card(3, 'outra'));
+    r.save('d', 120000, 3600000, 4000); // sem cartão (lista M3U)
+    expect(r.watching('src1').map((w) => w.card.x)).toEqual([2, 1]);
+  });
+  it('guardar de novo sem cartão mantém o anterior', () => {
+    const r = new ResumeStore(mem());
+    r.save('a', 120000, 3600000, 1000, card(1));
+    r.save('a', 180000, 3600000, 2000);
+    expect(r.watching('src1')[0]).toMatchObject({ pos: 180000, card: { x: 1 } });
+  });
+  it('cartão corrompido ou com cartaz não http é descartado/limpo ao carregar', () => {
+    const b = mem();
+    b.setItem('orbita.resume.v1', JSON.stringify({
+      a: { pos: 120000, dur: 3600000, at: 1, c: { s: 'src1', k: 'movie', x: 1, n: 'Ok', l: 'javascript:alert(1)' } },
+      b: { pos: 120000, dur: 3600000, at: 2, c: { s: 'src1', k: 'hack', x: 'x', n: 5 } },
+    }));
+    const r = new ResumeStore(b);
+    const w = r.watching('src1');
+    expect(w.map((x) => x.card.n)).toEqual(['Ok']);
+    expect(w[0].card.l).toBeUndefined();
+  });
+  it('vários episódios da mesma série viram um cartão só (o mais recente)', () => {
+    const r = new ResumeStore(mem());
+    const ep = (x: number) => ({ s: 'src1', k: 'episode' as const, x, n: 'Série', d: 'T1E' + x + ' · Ep', p: 77 });
+    r.save('e1', 120000, 3600000, 1000, ep(1));
+    r.save('e2', 120000, 3600000, 3000, ep(2));
+    r.save('m', 120000, 3600000, 2000, card(9));
+    const w = r.watching('src1');
+    expect(w.map((x) => x.key)).toEqual(['e2', 'm']);
+    expect(w[0].card.p).toBe(77);
+  });
+});

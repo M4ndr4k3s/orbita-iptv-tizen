@@ -5,7 +5,7 @@
 import { runImport, ImportError } from '../playlist/runImport';
 import {
   idbSink, deleteGeneration, markGeneration, cleanupGenerations, getGroups, getGroupPage, firstOf, neighbor, byNumber,
-  channelIds, getMany, searchIds, withoutGroups, liveRefs,
+  channelIds, getMany, searchIds, withoutGroups, liveRefs, recentIds,
 } from '../storage/channelStore';
 import { epgSink, schedule, searchProgrammes, warmProgrammes } from '../storage/epgStore';
 import { runEpg, EpgError } from '../epg/runEpg';
@@ -51,6 +51,10 @@ const RPC: Record<RpcName, (...args: any[]) => Promise<unknown>> = {
   },
   'channels.search': async (gk: string, term: string, hide?: string[]) =>
     withoutGroups(String(gk), 'live', await searchIds(gk, searchKey(String(term).slice(0, 60))), groupList(hide)),
+  'vod.recent': async (gk: string, kind: string, hide?: string[]) => {
+    const k = kind === 'series' ? 'series' : 'movie';
+    return withoutGroups(String(gk), k, await recentIds(String(gk), k), groupList(hide));
+  },
   'vod.search': async (gk: string, kind: string, term: string, hide?: string[]) => {
     const k = kind === 'series' ? 'series' : 'movie';
     return withoutGroups(String(gk), k, await searchIds(String(gk), searchKey(String(term).slice(0, 60)), 300, k), groupList(hide));

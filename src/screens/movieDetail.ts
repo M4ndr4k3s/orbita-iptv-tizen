@@ -117,6 +117,7 @@ export class MovieDetailScreen implements Screen {
         url,
         key: resumeKey(this.src, this.item.kind, this.item),
         durationMs: d && d.durationSec ? d.durationSec * 1000 : undefined,
+        card: this.item.xid != null ? { s: this.src.id, k: 'movie', x: this.item.xid, n: this.item.name, l: (d && d.poster) || this.item.logo, e: this.item.ext } : undefined,
       }),
     );
   }

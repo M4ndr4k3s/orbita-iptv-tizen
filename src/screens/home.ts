@@ -1,50 +1,182 @@
-// Tela inicial. Mostra a lista ativa (ou o estado vazio) e atalhos reais para
-// as seções; os trilhos de conteúdo entram quando houver dados (marcos 4+).
+// Tela inicial no estilo dos apps de streaming: um destaque grande no topo e
+// carrosséis de cartazes (continuar assistindo, canais vistos, favoritos e os
+// adicionados recentemente) que andam sozinhos. Os atalhos para as seções
+// saíram: o menu lateral já faz isso. Mostra o nome da lista, nunca o endereço.
 
 import { el, clear } from '../utils/dom';
 import type { Screen } from '../app/screen';
 import type { AppContext } from '../app/context';
 import { button } from '../components/button';
-import { Rail } from '../components/rail';
-import { icon, type IconName } from '../components/icons';
-import type { SectionId } from '../components/sidebar';
-import { describeSource } from '../playlist/source';
+import { PosterRail, type RailCard, type RailShape } from '../components/posterRail';
 import { SourcePickerScreen } from './sourcePicker';
-import { focus } from '../navigation/focus';
+import { focus, FOCUS_EVENT } from '../navigation/focus';
 import { importLine } from '../services/format';
 import { importWithProgress } from './importFlow';
 import { PlayerScreen } from './player';
+import { VodPlayerScreen } from './vodPlayer';
+import { openVodItem } from './vod';
 import { toast } from '../components/toast';
 import { idList, snapshotList } from '../services/channelLists';
-import { t, type I18nKey } from '../services/i18n';
+import { channelFromSnapshot, type Channel, type SavedEntry } from '../playlist/model';
+import type { Source } from '../playlist/source';
+import { streamUrl } from '../player/streamUrl';
+import { resume, type ResumeCard } from '../storage/resume';
+import { parental } from '../services/parental';
+import { t } from '../services/i18n';
 
-const SHORTCUTS: Array<[SectionId, IconName, I18nKey]> = [
-  ['live', 'live', 'nav.live'],
-  ['guide', 'guide', 'nav.guide'],
-  ['movies', 'movies', 'nav.movies'],
-  ['series', 'series', 'nav.series'],
-  ['favorites', 'favorites', 'nav.favorites'],
-  ['history', 'history', 'nav.history'],
-  ['search', 'search', 'nav.search'],
-  ['settings', 'settings', 'nav.settings'],
-];
+// passo automático dos carrosséis e troca do destaque (a cada 2 passos)
+const TICK_MS = 4000;
+const RAIL_MAX = 20;
+const IDLE_KEY_MS = 8000;
 
 export class HomeScreen implements Screen {
   readonly root: HTMLElement;
+  private scroller: HTMLElement;
   private hero: HTMLElement;
+  private railsBox: HTMLElement;
+  private rails: PosterRail[] = [];
+  private featured: Channel[] = [];
+  private featIndex = 0;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private ticks = 0;
+  private seq = 0;
+  private lastKeyAt = 0;
+  private onKeyDown = () => {
+    this.lastKeyAt = Date.now();
+  };
 
   constructor(private ctx: AppContext, private onBackAtRoot: () => void) {
-    const rail = new Rail(t('home.shortcuts'));
-    for (const [id, ic, label] of SHORTCUTS) {
-      const tile = el('div', { class: 'tile', attrs: { 'data-focusable': '' } }, [icon(ic, 'icon tile-icon'), el('span', { class: 'tile-label', text: t(label) })]);
-      tile.addEventListener('click', () => ctx.go(id));
-      rail.add(tile);
-    }
-    this.hero = el('section', { class: 'hero' });
-    this.root = el('div', { class: 'screen home' }, [this.hero, rail.root]);
+    this.hero = el('section', { class: 'hero home-hero', attrs: { 'data-focus-group': '' } });
+    this.railsBox = el('div', { class: 'home-rails' });
+    this.scroller = el('div', { class: 'home-scroll' }, [this.hero, this.railsBox]);
+    this.root = el('div', { class: 'screen home' }, [this.scroller]);
+    this.root.addEventListener(FOCUS_EVENT, (e) => this.onFocus(e.target as HTMLElement));
     this.renderHero();
     // a home vive a sessão toda (raiz da pilha): não precisa cancelar a inscrição
-    ctx.sources.onChange(() => this.renderHero());
+    ctx.sources.onChange(() => void this.refresh());
+  }
+
+  mount(): void {
+    void this.refresh();
+    this.timer = setInterval(() => this.tick(), TICK_MS);
+    document.addEventListener('keydown', this.onKeyDown, true);
+  }
+
+  unmount(): void {
+    if (this.timer) clearInterval(this.timer);
+    document.removeEventListener('keydown', this.onKeyDown, true);
+  }
+
+  /** Voltou de outra tela: o que foi assistido muda os carrosséis. */
+  show(): void {
+    void this.refresh();
+  }
+
+  onBack(): boolean {
+    this.onBackAtRoot();
+    return false;
+  }
+
+  private tick(): void {
+    // escondida (outra tela por cima): não mexe em nada
+    if (this.root.offsetParent === null) return;
+    for (const r of this.rails) r.tick();
+    // o destaque troca mesmo com foco nele, mas não logo depois de uma tecla (evita
+    // trocar o filme no meio de um OK)
+    if (++this.ticks % 2 === 0 && this.featured.length > 1 && Date.now() - this.lastKeyAt > IDLE_KEY_MS) {
+      this.featIndex = (this.featIndex + 1) % this.featured.length;
+      this.renderHero();
+    }
+  }
+
+  /** Rola a tela para mostrar a seção focada; carrossel sem foco volta a andar. */
+  private onFocus(target: HTMLElement): void {
+    for (const r of this.rails) if (!r.root.contains(target)) r.blur();
+    const sec = target.closest('.prail, .home-hero') as HTMLElement | null;
+    const y = !sec || sec === this.hero ? 0 : Math.max(0, sec.offsetTop - 60);
+    this.scroller.style.transform = 'translate3d(0,' + -y + 'px,0)';
+  }
+
+  private async refresh(): Promise<void> {
+    const seq = ++this.seq;
+    const src = this.ctx.sources.active();
+    const sections: Array<[string, RailCard[], RailShape]> = [];
+    let featured: Channel[] = [];
+    if (src && src.import) {
+      const gk = src.import.gk;
+      const d = this.ctx.data;
+      const [history, favs, recentMovieIds, recentSeriesIds] = await Promise.all([
+        this.ctx.library.list('history', src.id).catch(() => [] as SavedEntry[]),
+        this.ctx.library.list('favorites', src.id).catch(() => [] as SavedEntry[]),
+        d.call('vod.recent', gk, 'movie', parental.hiddenGroups('movie')).catch(() => [] as string[]),
+        d.call('vod.recent', gk, 'series', parental.hiddenGroups('series')).catch(() => [] as string[]),
+      ]);
+      const [movies, series] = await Promise.all([
+        d.call('channels.getMany', recentMovieIds.slice(0, RAIL_MAX)),
+        d.call('channels.getMany', recentSeriesIds.slice(0, RAIL_MAX)),
+      ]);
+      if (seq !== this.seq) return;
+      const ok = (x: Channel | null): x is Channel => !!x;
+      const watching = resume.watching(src.id, RAIL_MAX);
+      if (watching.length) sections.push([t('home.rail.watching'), watching.map((w) => this.watchCard(src, w)), 'poster']);
+      const live = history.filter((h) => !parental.isBlocked('live', h.channel.group)).slice(0, RAIL_MAX);
+      if (live.length) sections.push([t('home.rail.recentLive'), live.map((_h, i) => this.liveCard(src, live, i)), 'square']);
+      const fav = favs.filter((h) => !parental.isBlocked('live', h.channel.group)).slice(0, RAIL_MAX);
+      if (fav.length) sections.push([t('home.rail.favorites'), fav.map((_h, i) => this.liveCard(src, fav, i)), 'square']);
+      const m = movies.filter(ok);
+      if (m.length) sections.push([t('home.rail.newMovies'), m.map((c) => this.vodCard(src, c)), 'poster']);
+      const s = series.filter(ok);
+      if (s.length) sections.push([t('home.rail.newSeries'), s.map((c) => this.vodCard(src, c)), 'poster']);
+      featured = m.filter((c) => !!c.logo).slice(0, 6);
+    }
+    if (seq !== this.seq) return;
+    const hadFocus = !!focus.current && this.railsBox.contains(focus.current);
+    clear(this.railsBox);
+    this.rails = sections.map(([title, cards, shape]) => new PosterRail(title, cards, shape));
+    for (const r of this.rails) this.railsBox.appendChild(r.root);
+    for (const r of this.rails) r.start();
+    this.featured = featured;
+    if (this.featIndex >= featured.length) this.featIndex = 0;
+    this.renderHero();
+    if (hadFocus) focus.focus(this.hero.querySelector<HTMLElement>('[data-autofocus]'));
+  }
+
+  private watchCard(src: Source, w: { key: string; pos: number; dur: number; card: ResumeCard }): RailCard {
+    return {
+      title: w.card.n,
+      sub: w.card.k === 'episode' && w.card.d ? w.card.d.split(' · ')[0] : w.card.d,
+      img: w.card.l,
+      progress: w.dur > 0 ? w.pos / w.dur : undefined,
+      onClick: () => {
+        const c = w.card;
+        // episódio: abre a série (temporadas), não o episódio solto
+        if (c.k === 'episode' && c.p != null) {
+          openVodItem(this.ctx, src, { id: '', gk: '', order: 0, num: 0, q: '', group: '', kind: 'series', name: c.n, logo: c.l, xid: c.p });
+          return;
+        }
+        // URL montada agora com a fonte (o cartão não guarda credenciais)
+        const url = streamUrl({ id: '', gk: '', order: 0, num: 0, q: '', group: '', name: c.n, kind: c.k === 'movie' ? 'movie' : 'series', xid: c.x, ext: c.e }, src);
+        if (!url) return toast(t('player.fail.noUrl'), 'error');
+        this.ctx.push(new VodPlayerScreen(this.ctx, { title: c.n, subtitle: c.d, url, key: w.key, card: c }));
+      },
+    };
+  }
+
+  private liveCard(src: Source, entries: SavedEntry[], i: number): RailCard {
+    const ch = entries[i].channel;
+    return {
+      title: ch.name,
+      sub: ch.num ? String(ch.num) : ch.group,
+      img: ch.logo,
+      onClick: () => {
+        const list = snapshotList(entries);
+        this.ctx.push(new PlayerScreen(this.ctx, src, channelFromSnapshot(ch), list, i));
+      },
+    };
+  }
+
+  private vodCard(src: Source, c: Channel): RailCard {
+    return { title: c.name, sub: c.rating ? '★ ' + c.rating.toFixed(1) : c.group, img: c.logo, onClick: () => openVodItem(this.ctx, src, c) };
   }
 
   /** Retoma o último canal assistido (CH± percorre os recentes) ou abre o primeiro da lista. */
@@ -68,43 +200,42 @@ export class HomeScreen implements Screen {
     this.ctx.push(new PlayerScreen(this.ctx, s, ch, idList(this.ctx.data, ids), 0));
   }
 
-  onBack(): boolean {
-    this.onBackAtRoot();
-    return false;
-  }
-
   private renderHero(): void {
-    const hadFocus = this.hero.querySelector('.is-focused') !== null;
+    const hadFocus = this.hero.contains(focus.current);
     clear(this.hero);
+    this.hero.classList.remove('featured');
     const active = this.ctx.sources.active();
     if (!active) {
       this.hero.appendChild(el('h1', { class: 'hero-title', text: t('home.welcome') }));
       this.hero.appendChild(el('p', { class: 'hero-text', text: t('home.empty') }));
       this.hero.appendChild(el('div', { class: 'hero-actions' }, [
         button(t('home.addList'), { icon: 'plus', variant: 'primary', autofocus: true, onClick: () => this.ctx.go('lists') }),
-        button(t('nav.about'), { icon: 'about', onClick: () => this.ctx.go('about') }),
+      ]));
+    } else if (!active.import) {
+      this.hero.appendChild(el('p', { class: 'hero-kicker', text: active.name }));
+      this.hero.appendChild(el('h1', { class: 'hero-title', text: t('home.notLoaded') }));
+      this.hero.appendChild(el('div', { class: 'hero-actions' }, [
+        button(t('home.loadNow'), { icon: 'lists', variant: 'primary', autofocus: true, onClick: () => void importWithProgress(this.ctx.imports, active) }),
       ]));
     } else {
+      const f = this.featured[this.featIndex];
       const actions = el('div', { class: 'hero-actions' });
-      const loaded = !!active.import;
-      if (loaded && active.import!.live > 0) {
-        actions.appendChild(button(t('home.watch'), { icon: 'live', variant: 'primary', autofocus: true, onClick: () => void this.watch() }));
+      if (f) {
+        this.hero.classList.add('featured');
+        actions.appendChild(button(t('home.details'), { icon: 'movies', variant: 'primary', autofocus: true, onClick: () => openVodItem(this.ctx, active, f) }));
       }
-      actions.appendChild(button(loaded ? t('home.refresh') : t('home.loadNow'), {
-        icon: 'lists', variant: actions.childNodes.length ? 'ghost' : 'primary', autofocus: !actions.childNodes.length,
-        onClick: () => void importWithProgress(this.ctx.imports, active),
-      }));
-      if (this.ctx.sources.list().length > 1) {
-        actions.appendChild(button(t('home.switchList'), { icon: 'lists', onClick: () => this.ctx.push(new SourcePickerScreen(this.ctx)) }));
-      }
-      actions.appendChild(button(t('home.manageLists'), { icon: 'settings', onClick: () => this.ctx.go('lists') }));
-      this.hero.appendChild(el('p', { class: 'hero-kicker', text: t('home.activeList') }));
-      this.hero.appendChild(el('h1', { class: 'hero-title', text: active.name }));
-      this.hero.appendChild(el('p', { class: 'hero-stats', text: importLine(active) }));
-      this.hero.appendChild(el('p', { class: 'hero-text', text: describeSource(active) + (loaded ? ' · ' + t('home.contentNext') : '') }));
-      this.hero.appendChild(actions);
+      if (active.import.live > 0) actions.appendChild(button(t('home.watch'), { icon: 'live', variant: f ? 'ghost' : 'primary', autofocus: !f, onClick: () => void this.watch() }));
+      if (this.ctx.sources.list().length > 1) actions.appendChild(button(t('home.switchList'), { icon: 'lists', onClick: () => this.ctx.push(new SourcePickerScreen(this.ctx)) }));
+      const text = el('div', { class: 'home-hero-text' }, [
+        el('p', { class: 'hero-kicker', text: f ? t('home.featured') : active.name }),
+        el('h1', { class: 'hero-title', text: f ? f.name : active.name }),
+        el('p', { class: 'hero-stats', text: f ? (f.rating ? '★ ' + f.rating.toFixed(1) + ' · ' : '') + f.group : importLine(active) }),
+        actions,
+        el('p', { class: 'home-list-name', text: t('home.listLabel', { name: active.name }) }),
+      ]);
+      this.hero.appendChild(text);
+      if (f && f.logo) this.hero.appendChild(el('img', { class: 'home-hero-poster', attrs: { src: f.logo, alt: '' } }));
     }
-    // se o foco estava num botão recriado, devolve ao novo botão principal
     if (hadFocus) focus.focus(this.hero.querySelector<HTMLElement>('[data-autofocus]'));
   }
 }

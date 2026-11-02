@@ -7,7 +7,7 @@ import { t, type I18nKey } from '../services/i18n';
 
 export type SectionId =
   | 'home' | 'live' | 'guide' | 'movies' | 'series' | 'favorites'
-  | 'history' | 'search' | 'lists' | 'settings' | 'about';
+  | 'history' | 'downloads' | 'search' | 'lists' | 'settings' | 'about';
 
 const ITEMS: Array<[SectionId, IconName, I18nKey]> = [
   ['search', 'search', 'nav.search'],
@@ -18,6 +18,7 @@ const ITEMS: Array<[SectionId, IconName, I18nKey]> = [
   ['series', 'series', 'nav.series'],
   ['favorites', 'favorites', 'nav.favorites'],
   ['history', 'history', 'nav.history'],
+  ['downloads', 'download', 'nav.downloads'],
   ['lists', 'lists', 'nav.lists'],
   ['settings', 'settings', 'nav.settings'],
   ['about', 'about', 'nav.about'],
