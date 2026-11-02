@@ -38,11 +38,24 @@ A TV precisa estar em modo desenvolvedor, com o certificado do perfil usado na a
 
 ## Versão
 
-`package.json` e `tizen/config.xml` estão em `0.1.0`. Atualize os dois juntos antes de publicar uma nova versão.
+**1.0.0** em `package.json` e `tizen/config.xml` (tag `v1.0.0`). Atualize os dois juntos na próxima versão.
+
+### Pacote 1.0.0 (2026-11-02)
+
+- `dist/Orbita-1.0.0.wgt`, 144 KB, SHA-256 `82066f1329d8441b80e6da01c19dbae6644f8f00cf18508f3651c21fec803820`.
+- **Checagens antes de gerar:**
+  - `tsc` sem erros;
+  - 146 testes unitários passando;
+  - `npm audit` sem vulnerabilidades;
+  - valores de `dev/lista-teste.json` procurados nos 158 arquivos versionados e em todo o histórico do Git: 0 ocorrências.
+- **Checagens no `.wgt`:** 0 credenciais, sem sourcemap, sem hooks de teste, versão 1.0.0.
+- **Instalado na UN50AU7700** por cima do build de teste. Listas, favoritos e tema foram mantidos, e a lista real abriu com 2.833 canais e 36.867 filmes.
+- **Não testado:** gravação e download com pendrive de verdade; sem pendrive, só o aviso foi conferido.
 
 ## Pendências conhecidas
 
 - Perfis (marco 11) não implementados.
+- Gravação/download: falta o teste com um pendrive conectado.
 - Lista importada antes da busca global: a primeira busca de filmes/séries é lenta (~16 s) até a próxima atualização da lista.
 
 ## Privilégio de download (gravação/download no pendrive)

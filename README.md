@@ -2,6 +2,26 @@
 
 Player IPTV para Samsung Smart TV (Tizen 6.0+). Toca listas M3U/M3U8, contas Xtream Codes e guias XMLTV fornecidos pelo próprio usuário. O app não traz conteúdo nenhum.
 
+**Versão 1.0.0.** Pacote: `npm run release` → `build/Orbita.wgt` (cópia em `dist/`, fora do Git). Instalação e checagens em [docs/release.md](docs/release.md).
+
+## Funcionalidades
+
+- **Listas:** várias listas M3U e Xtream, atualização automática e em segundo plano, backup e restauração pelo pendrive.
+- **TV ao vivo:** categorias, favoritos, histórico, número pelo controle e mini janela. Na mini janela, OK põe o canal e OK de novo abre a tela cheia.
+- **Guia (EPG):** XMLTV, inclusive `.gz`. Mostra agora e próximo, a grade e a barra do programa no ar.
+- **Filmes e séries (Xtream):** grade de cartazes, sinopse, temporadas, episódios e "continuar de".
+- **Player:**
+  - botões na tela: Pausar, Gravar, ±10 s, Opções e Favoritar;
+  - opções: áudio, legendas, proporção e buffer;
+  - reconexão automática.
+- **Busca global:** canais, filmes, séries e programas do guia.
+- **Gravação e download:** canal ao vivo (TS) e filmes ou episódios, para a pasta `Orbita` do pendrive.
+- **Configurações:**
+  - temas Preto, Cinema e Azul noite;
+  - idiomas pt-BR, en e es;
+  - controle parental com PIN e categorias bloqueadas;
+  - apagar o histórico.
+
 ## Requisitos
 
 - Tizen Studio em `C:\tizen-studio` (ou `TIZEN_HOME`), com o perfil de certificado Samsung ativo
@@ -36,7 +56,7 @@ node scripts/tv.mjs debug                  # relança em modo debug e faz port-f
 node scripts/tv.mjs key down down ok back  # simula o controle remoto
 node scripts/tv.mjs eval "document.title"  # avalia JS na página
 node scripts/tv.mjs logs 15                # console/erros por 15 s
-node scripts/tv.mjs mem                    # heap JS e nós do DOM
+node scripts/tv.mjs mem                    # heap JS exato (GC forçado) e nós do DOM
 ```
 
 Roteiros de ponta a ponta (rodam na TV, simulando o controle):
@@ -61,3 +81,4 @@ E2E_MOCK=http://<ip-do-pc>:8097 node scripts/tv.mjs run scripts/e2e/m3-lists.js
 - [Arquitetura e plano](docs/02-arquitetura-e-plano.md)
 - [Registro de testes](docs/testes.md)
 - [Erros e soluções](docs/erros-e-solucoes.md)
+- [Release](docs/release.md)
